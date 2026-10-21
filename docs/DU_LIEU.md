@@ -1,100 +1,62 @@
-# Dữ liệu và tiền xử lý
-
-## Kết quả lần chạy ngày 21/10/2026
-
-Quét 6.157.341 dòng nguồn. Không thiếu ở chín cột từ PuzzleId đến GameUrl;
-OpeningTags thiếu 4.932.426 dòng, DailyDate thiếu 6.155.554 dòng.
-Hai trường này không dùng làm đầu vào nên không loại dòng chỉ vì thiếu chúng.
-
-Mẫu ngẫu nhiên 20.000 dòng, seed 42: không phát hiện thiếu trường bắt buộc,
-Rating/URL không hợp lệ, FEN lỗi, PuzzleId trùng hoặc thế cờ chuẩn hóa trùng.
-Sau làm sạch còn 20.000 dòng. Đây là kết quả của mẫu, không chứng minh toàn
-nguồn không có lỗi hoặc trùng.
-
-Rating mẫu: trung bình 1.465,09; độ lệch chuẩn 546,52; min 399; Q1 1.037;
-trung vị 1.411; Q3 1.865; max 3.065. Hai cột hằng là white_k và black_k.
-Các tập train/validation lần lượt có 16.000/4.000, 14.000/6.000, 12.000/8.000
-dòng. Cả ba phép chia có giao ID ván và khóa thế cờ bằng 0.
-
-Đã đạt 5 kiểm tra tự động về FEN, lỗi/trùng, đặc trưng, lấy mẫu tái lập và chia
-tập; chạy thử cả ba mô hình qua 27 tổ hợp trên mẫu nhỏ 300 dòng. Đây là kiểm tra
-luồng chương trình, chưa phải kết quả đánh giá chất lượng mô hình cuối cùng.
+# Dữ liệu và tiền xử lý — phiên bản 2
 
 ## Chạy lại
 
-Từ thư mục gốc, sau khi cài `requirements.txt` và đặt CSV tại thư mục gốc:
-
 ```powershell
-python -m src.prepare --sample 20000 --seed 42
+python -m src.prepare --sample 20000 --seed 42 --output outputs/features_v2
 python -m unittest discover -s tests -v
-python -m src.run --sample 20000 --seed 42 --models ridge random_forest mlp
+python -m src.run --sample 20000 --seed 42
 ```
 
-`prepare` quét toàn bộ CSV theo chunk 100.000 dòng. Mỗi dòng được gán ưu tiên
-ngẫu nhiên, giữ 20.000 ưu tiên nhỏ nhất trên toàn tệp. Cùng tệp, thứ tự dòng và
-seed sẽ tạo cùng mẫu. Lấy mẫu trước, làm sạch sau nên số dòng còn lại có thể ít
-hơn số yêu cầu; không bù thêm dòng sau khi loại lỗi/trùng.
+Cài requirements.txt và đặt CSV gốc ở thư mục gốc trước khi chạy. Kết quả trong outputs/ không commit. Không tái sử dụng features.csv cũ với 23 đặc trưng.
 
-## Phạm vi thống kê
+## Thế cờ người giải
 
-- Toàn nguồn: số dòng, số giá trị thiếu theo từng cột, các dtype pandas quan sát
-  được theo chunk. Dtype suy luận không thay thế kiểm tra ngữ nghĩa.
-- Chỉ trên mẫu: FEN, Rating, URL, trùng PuzzleId/thế cờ, thống kê đặc trưng và Rating.
-  Không suy rộng số lỗi hoặc số bản ghi trùng của mẫu thành số của toàn nguồn.
-- Bộ đếm loại dòng tính tuần tự: một dòng chỉ được tính ở lý do bị loại đầu tiên.
+Theo [tài liệu Lichess](https://database.lichess.org/#puzzles), FEN gốc là thế cờ trước nước đối thủ. Chỉ áp dụng nước đầu trong Moves để tạo PuzzleFEN; nước thứ hai mới bắt đầu lời giải. Không đọc các nước tiếp theo hoặc dùng số nước lời giải làm đặc trưng.
 
-## Quy tắc làm sạch
+FEN phải có sáu trường, hợp lệ tĩnh theo python-chess. Nước đầu phải là UCI hợp lệ và nằm trong legal_moves. Kiểm tra này không chứng minh toàn bộ lịch sử ván hợp lệ. PuzzleFEN, khóa thế cờ và en_passant dùng thống nhất ô bắt tốt qua đường có hiệu lực pháp lý.
 
-1. Loại dòng thiếu PuzzleId, FEN, Rating hoặc GameUrl.
-2. Ép Rating sang số; loại giá trị không hữu hạn hoặc không dương.
-3. Trích ID ván 8 ký tự từ URL HTTPS của lichess.org; loại URL không phù hợp.
-4. Loại PuzzleId trùng, giữ dòng đầu theo thứ tự ưu tiên lấy mẫu.
-5. FEN phải có sáu trường, đọc được bằng python-chess và `Board.is_valid()`.
-   Kiểm tra này xác nhận tính hợp lệ tĩnh, không chứng minh thế cờ có thể đạt tới
-   từ vị trí ban đầu bằng một lịch sử ván hợp lệ.
-6. Chuẩn hóa thế cờ bằng `board.fen(en_passant="legal")`, giữ bốn trường đầu:
-   bàn cờ, bên tới lượt, quyền nhập thành, ô bắt tốt qua đường có hiệu lực.
-   Bỏ hai bộ đếm nước khi so trùng; giữ một dòng cho mỗi thế cờ chuẩn hóa.
+## Lấy mẫu và làm sạch
 
-## 23 đặc trưng đầu vào
+Quét toàn nguồn theo chunk 100.000 dòng; gán ưu tiên ngẫu nhiên seed 42, giữ 20.000 ưu tiên nhỏ nhất. Cùng tệp/thứ tự dòng/seed cho cùng mẫu. Làm sạch sau lấy mẫu, không bù dòng bị loại. Bộ đếm loại dòng tính tuần tự:
 
-| Tên | Số cột | Kiểu | Ý nghĩa |
-|---|---:|---|---|
-| `white_p/n/b/r/q/k` | 6 | Số nguyên | Số tốt/mã/tượng/xe/hậu/vua trắng |
-| `black_p/n/b/r/q/k` | 6 | Số nguyên | Số quân tương ứng của đen |
-| `white_material`, `black_material` | 2 | Số | Tổng giá trị với trọng số 1/3/3/5/9/0 |
-| `castle_K/Q/k/q` | 4 | Nhị phân | Bốn quyền nhập thành |
-| `turn` | 1 | Phân loại | Bên tới lượt: w hoặc b |
-| `en_passant` | 1 | Nhị phân | FEN có khai báo ô bắt tốt qua đường |
-| `halfmove`, `fullmove` | 2 | Số nguyên | Hai bộ đếm trong FEN |
-| `material_difference` | 1 | Số | Vật chất trắng trừ đen |
+1. Thiếu PuzzleId/FEN/Moves/Rating/GameUrl.
+2. Rating không hữu hạn hoặc không dương.
+3. URL không phải HTTPS lichess.org với ID ván tám ký tự.
+4. Trùng PuzzleId, giữ dòng đầu theo thứ tự ưu tiên lấy mẫu.
+5. FEN hoặc nước thiết lập không hợp lệ.
+6. Trùng khóa PuzzleFEN chuẩn hóa: bốn trường đầu, bỏ bộ đếm nước.
 
-Đây là bộ đặc trưng baseline, chưa mô tả đầy đủ chiến thuật hay cấu trúc vị trí.
-Số vua có thể là cột hằng; báo cáo chất lượng liệt kê cột hằng để nhóm cân nhắc
-loại hoặc thay bằng đặc trưng khác khi phân tích giảm chiều. Không dùng Rating,
-RatingDeviation, Popularity, NbPlays, Moves hoặc Themes làm đầu vào. Cần xác nhận
-với giảng viên yêu cầu 15 thuộc tính được tính sau trích xuất.
+Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo chunk. Xác thực chi tiết, lỗi/trùng và thống kê Rating/đặc trưng chỉ trên mẫu; không suy rộng thành toàn nguồn không có lỗi.
 
-## Chia dữ liệu và chống rò rỉ
+## 33 đặc trưng đầu vào
 
-Loại thế cờ trùng trong mẫu trước, sau đó GroupShuffleSplit theo ID ván ở ba tỷ lệ
-validation 20%, 30%, 40%, seed 42. Tỷ lệ theo nhóm nên số dòng có thể chênh nhẹ.
-Hàm chia kiểm tra giao của ID ván và khóa thế cờ giữa hai tập đều rỗng, báo lỗi
-nếu có rò rỉ. Cả ba mô hình sử dụng cùng hàm chia và cùng mẫu.
+| Tên | Số cột | Ý nghĩa |
+|---|---:|---|
+| white_p/n/b/r/q, black_p/n/b/r/q | 10 | Số tốt, mã, tượng, xe, hậu mỗi bên |
+| white_material, black_material | 2 | Vật chất trọng số 1/3/3/5/9 |
+| castle_K/Q/k/q | 4 | Quyền nhập thành |
+| turn | 1 | Phân loại w/b: bên người giải tới lượt |
+| en_passant | 1 | Có nước bắt tốt qua đường hợp lệ |
+| halfmove, fullmove | 2 | Hai bộ đếm nước |
+| material_difference | 1 | Vật chất trắng trừ đen |
+| white_pinned, black_pinned | 2 | Quân không phải vua bị ghim tuyệt đối vào vua |
+| white_hanging, black_hanging | 2 | Quân không phải vua bị tấn công mà không được bảo vệ |
+| white_attacked_squares, black_attacked_squares | 2 | Số ô bị mỗi bên tấn công, xấp xỉ độ hoạt động |
+| white_king_zone_attacked, black_king_zone_attacked | 2 | Số ô kề vua bị đối phương tấn công |
+| legal_moves | 1 | Số nước hợp lệ bên tới lượt |
+| checking_moves | 1 | Số nước hợp lệ gây chiếu bên tới lượt |
+| in_check | 1 | Bên tới lượt đang bị chiếu |
+| phase_material | 1 | Trọng số mã/tượng/xe/hậu 1/1/2/4 hai bên, chặn 24 rồi chia 24 |
 
-Mã hóa, chuẩn hóa, giảm chiều và chuẩn hóa nhãn chỉ fit trên train trong Pipeline.
-Các thế cờ gần giống chưa được coi là trùng. Validation phục vụ so sánh ban đầu;
-nếu tuning nhiều lần cần tập test cuối cùng độc lập.
+Đã bỏ hai cột số vua hằng. Mọi cột trừ turn là số. attacked_squares/hanging dùng quan hệ tấn công hình học của python-chess: quân bị ghim vẫn có thể tính là tấn công, không phải phân tích trao đổi tối ưu. Chỉ tính nước hợp lệ cho bên tới lượt; không đổi bên giả lập vì có thể tạo thế cờ không hợp lệ. phase_material là chỉ báo vật chất liên tục, không phải nhãn giai đoạn chính xác.
 
-## Kết quả sinh ra
+Không dùng Rating, RatingDeviation, Popularity, NbPlays, Themes hoặc phần lời giải sau nước thiết lập làm đầu vào. Bộ đặc trưng vẫn là baseline, không đảm bảo dự đoán tốt chỉ vì tăng số chiều.
 
-Trong `outputs/preprocessing/` (được Git bỏ qua):
+## Chia tập và artifacts
 
-- `quality_report.json`: phạm vi kiểm tra, bộ đếm, thống kê Rating, cột hằng và số dòng các tập.
-- `sample.csv`, `features.csv`: mẫu sạch và đặc trưng có cùng thứ tự hàng.
-- `feature_statistics.csv`: thống kê các đặc trưng.
-- `split_20.csv`, `split_30.csv`, `split_40.csv`: PuzzleId và nhãn train/validation để đối chiếu.
-- `rating_distribution.png`: biểu đồ Rating của mẫu sạch, ghi cỡ mẫu và seed.
+Loại thế cờ trùng trước, rồi GroupShuffleSplit theo ID ván với validation 20%, 30%, 40%, seed 42. Kiểm tra giao ID ván và khóa PuzzleFEN bằng 0. Tỷ lệ dòng có thể lệch tỷ lệ nhóm. Cả ba mô hình dùng chung hàm chia. Mã hóa, chuẩn hóa, giảm chiều và biến đổi Rating chỉ fit trên train. Thế cờ gần giống chưa được coi là trùng; cần test độc lập nếu tuning nhiều lần.
 
-Không commit dữ liệu, kết quả hoặc biểu đồ sinh tự động. Phần phân cụm, phân loại
-bổ sung, tuning và trực quan hóa PCA/SVD thuộc các công việc tiếp theo.
+Trong outputs/features_v2/: quality_report.json, sample.csv (gồm FEN gốc và PuzzleFEN), features.csv (cùng thứ tự hàng), feature_statistics.csv, split_20/30/40.csv, rating_distribution.png. Mã và tài liệu được commit, artifacts cục bộ không commit.
+
+Theo phản hồi của Doanh trong issue #1, yêu cầu 15 thuộc tính sau trích xuất đã được xác nhận. Bộ đặc trưng mới chờ nhóm review qua PR; chưa gộp main hoặc đóng issue.

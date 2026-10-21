@@ -7,7 +7,7 @@ Random Forest và MLP. Đây là khung thực nghiệm ban đầu, chưa phải 
 
 ```text
 src/data.py           Đọc từng chunk và lấy mẫu toàn tệp bằng ưu tiên ngẫu nhiên
-src/features.py       Trích xuất 23 đặc trưng từ FEN
+src/features.py       Trích xuất 33 đặc trưng từ FEN
 src/models/linear.py  Thành viên 1: Ridge
 src/models/random_forest.py    Thành viên 2: Random Forest
 src/models/mlp.py     Thành viên 3: MLP
@@ -53,5 +53,4 @@ phân tích phần dư, phân cụm, phân loại bổ sung, trực quan hóa, b
 theo `docs/PHAN_CONG.md`. Validation dùng để so sánh ban đầu; nếu tối ưu mô hình
 nhiều lần cần tách thêm tập test cuối cùng. Cần kiểm tra trùng thế cờ giữa các ván.
 
-Đầu vào chỉ dùng FEN. Không dùng RatingDeviation, Popularity, NbPlays, chuỗi lời giải
-hoặc nhãn chiến thuật để dự đoán độ khó của thế cờ mới.
+Đầu vào dùng thế cờ sau nước thiết lập đầu tiên trong Moves (PuzzleFEN), đúng định dạng Lichess. Không dùng các nước tiếp theo, độ dài lời giải, RatingDeviation, Popularity, NbPlays hoặc Themes làm đặc trưng.
