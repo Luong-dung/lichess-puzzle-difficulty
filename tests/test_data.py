@@ -5,7 +5,7 @@ import chess
 import numpy as np
 import pandas as pd
 from src.data import clean_sample, load_sample, split_groups
-from src.features import extract_fen, position_key, make_features
+from src.features import extract_fen, position_key, make_features, puzzle_fen
 
 
 class DataTests(unittest.TestCase):
@@ -16,11 +16,39 @@ class DataTests(unittest.TestCase):
         for i in range(n):
             if board.is_game_over():
                 board.reset()
-            rows.append(dict(PuzzleId=str(i), FEN=board.fen(), Rating=1000+i,
-                             GameUrl=f"https://lichess.org/{i//3:08d}"))
             moves = list(board.legal_moves)
-            board.push(moves[int(rng.integers(len(moves)))])
+            move = moves[int(rng.integers(len(moves)))]
+            rows.append(dict(PuzzleId=str(i), FEN=board.fen(), Rating=1000+i, Moves=move.uci(),
+                             GameUrl=f"https://lichess.org/{i//3:08d}"))
+            board.push(move)
         return pd.DataFrame(rows)
+
+    def test_setup_move_only_and_ep_normalization(self):
+        fen = puzzle_fen(chess.STARTING_FEN, "e2e4 e7e5")
+        self.assertEqual(fen, puzzle_fen(chess.STARTING_FEN, "e2e4 INVALID"))
+        self.assertEqual(extract_fen(fen)["turn"], "b")
+        self.assertEqual(extract_fen(fen)["en_passant"], 0)
+        with self.assertRaises(ValueError):
+            puzzle_fen(chess.STARTING_FEN, "e2e5")
+        with self.assertRaises(ValueError):
+            puzzle_fen(chess.STARTING_FEN, "")
+
+    def test_pins_hanging_and_legal_ep(self):
+        values = extract_fen("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1")
+        self.assertEqual(values["white_pinned"], 1)
+        self.assertEqual(values["white_hanging"], 0)
+        self.assertEqual(values["black_hanging"], 1)
+        self.assertEqual(extract_fen("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2")["en_passant"], 1)
+
+    def test_tactical_features(self):
+        board = chess.Board()
+        for move in ("f2f3", "e7e5", "g2g4"):
+            board.push_uci(move)
+        self.assertGreater(extract_fen(board.fen())["checking_moves"], 0)
+        board.push_uci("d8h4")
+        values = extract_fen(board.fen())
+        self.assertEqual(values["in_check"], 1)
+        self.assertEqual(values["legal_moves"], 0)
 
     def test_invalid_fen_rejected(self):
         for fen in ("bad", "8/8/8/8/8/8/8/8 w - - 0 1"):
@@ -30,7 +58,10 @@ class DataTests(unittest.TestCase):
     def test_features_and_clock_independent_key(self):
         fen = chess.STARTING_FEN
         features = extract_fen(fen)
-        self.assertEqual(len(features), 23)
+        self.assertEqual(len(features), 33)
+        self.assertNotIn("white_k", features)
+        self.assertEqual(features["legal_moves"], 20)
+        self.assertEqual(features["checking_moves"], 0)
         self.assertEqual(features["white_p"], 8)
         self.assertEqual(features["material_difference"], 0)
         self.assertEqual(position_key(fen), position_key(fen.rsplit(" ", 2)[0]+" 7 10"))
@@ -45,7 +76,7 @@ class DataTests(unittest.TestCase):
         cleaned, report = clean_sample(pd.concat([source, source.iloc[[0]], duplicate, bad], ignore_index=True))
         self.assertEqual(report["duplicate_puzzle_id"], 1)
         self.assertEqual(report["duplicate_position"], 1)
-        self.assertEqual(report["invalid_fen"], 1)
+        self.assertEqual(report["invalid_fen_or_setup_move"], 1)
         self.assertEqual(len(cleaned), 5)
 
     def test_sampling_reproducible_and_aligned(self):
