@@ -1,14 +1,48 @@
+# Du lieu goc va du lieu da xu ly
+/data/
 *.csv
 *.zst
 *.parquet
+*.feather
+*.arrow
+*.npy
+*.npz
+
+# Ket qua chay, mo hinh va log
+/outputs/
 *.joblib
 *.pkl
+*.pickle
+*.log
+
+# Tai lieu yeu cau mon hoc chi luu cuc bo
+/Projects_Ideas.pdf
+/yeucau.md
+
+# Moi truong Python va cache
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Thong tin bi mat va cau hinh may ca nhan
 .env
 .env.*
-.venv/
-__pycache__/
-.ipynb_checkpoints/
-outputs/
-.pytest_cache/
-Projects_Ideas.pdf
-yeucau.md
+!.env.example
+/.vscode/
+/.idea/
+
+# Tep tam cua he dieu hanh va trinh soan thao
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.swp
+*~
