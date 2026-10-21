@@ -2,9 +2,9 @@
 
 | Thành viên | Module phụ trách | Sản phẩm |
 |---|---|---|
-| 1 (điền tên) | `src/models/linear.py`, EDA và PCA | Ridge/Linear; biểu đồ dữ liệu; phân tích phương sai PCA |
-| 2 (điền tên) | `src/models/random_forest.py`, SVD và K-Means | Random Forest; thử n_estimators/max_depth/min_samples_leaf/max_features; phân cụm |
-| 3 (điền tên) | `src/models/mlp.py`, GMM và phân loại bổ sung | MLP; GMM; điều phối Naive Bayes và Logistic Regression |
+| 1 Nguyễn Quốc Doanh | `src/models/linear.py`, EDA và PCA | Ridge/Linear; biểu đồ dữ liệu; phân tích phương sai PCA |
+| 2 Lường Tiến Dũng | `src/models/random_forest.py`, SVD và K-Means | Random Forest; thử n_estimators/max_depth/min_samples_leaf/max_features; phân cụm |
+| 3 Trần Bảo Ngọc | `src/models/mlp.py`, GMM và phân loại bổ sung | MLP; GMM; điều phối Naive Bayes và Logistic Regression |
 
 Cả nhóm cùng rà soát `data.py`, `features.py`, `evaluation.py`, thống nhất dữ liệu và seed.
 Mỗi người viết lý thuyết, kết quả, nhận xét và trình bày mô hình của mình.
