@@ -1,7 +1,7 @@
 # Lichess Puzzle Difficulty
 
 Bài tập lớn học máy cho nhóm 3 người: dự đoán Rating bài tập cờ vua bằng Ridge,
-Decision Tree và MLP. Đây là khung thực nghiệm ban đầu, chưa phải bài nộp hoàn chỉnh.
+Random Forest và MLP. Đây là khung thực nghiệm ban đầu, chưa phải bài nộp hoàn chỉnh.
 
 ## Cấu trúc
 
@@ -9,7 +9,7 @@ Decision Tree và MLP. Đây là khung thực nghiệm ban đầu, chưa phải 
 src/data.py           Đọc từng chunk và lấy mẫu toàn tệp bằng ưu tiên ngẫu nhiên
 src/features.py       Trích xuất 23 đặc trưng từ FEN
 src/models/linear.py  Thành viên 1: Ridge
-src/models/tree.py    Thành viên 2: cây hồi quy
+src/models/random_forest.py    Thành viên 2: Random Forest
 src/models/mlp.py     Thành viên 3: MLP
 src/evaluation.py     MAE, RMSE, R²
 src/run.py            Thực nghiệm chung
@@ -35,7 +35,7 @@ bản tải mới có thể khác. Ngày cập nhật bản nguồn cần đư�
 
 ```powershell
 zstd -d -k lichess_db_puzzle.csv.zst
-python -m src.run --sample 1000 --models ridge tree
+python -m src.run --sample 1000 --models ridge random_forest
 ```
 
 Kết quả nằm trong `outputs/metrics.csv`, gồm lỗi train và validation.
