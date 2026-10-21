@@ -1,8 +1,24 @@
 """Features available from FEN; never use rating or solution moves as inputs."""
 import pandas as pd
+import chess
+
+
+def validated_board(fen):
+    if not isinstance(fen, str) or len(fen.split()) != 6:
+        raise ValueError("FEN must have six fields")
+    board = chess.Board(fen)
+    if not board.is_valid():
+        raise ValueError(f"Invalid board status: {board.status()}")
+    return board
+
+
+def position_key(fen):
+    return " ".join(validated_board(fen).fen(en_passant="legal").split()[:4])
+
 
 
 def extract_fen(fen):
+    validated_board(fen)
     fields = fen.split()
     if len(fields) != 6:
         raise ValueError(f"Invalid FEN: {fen}")

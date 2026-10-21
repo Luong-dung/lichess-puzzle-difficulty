@@ -19,6 +19,9 @@ notebook.ipynb        Notebook hiện có, giữ nguyên để nhóm phát tri�
 
 ## Cài đặt và chạy
 
+Hướng dẫn tiền xử lý, kiểm tra chất lượng và mô tả đặc trưng:
+[docs/DU_LIEU.md](docs/DU_LIEU.md).
+
 Python 3.10 trở lên. Chạy từ thư mục gốc:
 
 ```powershell

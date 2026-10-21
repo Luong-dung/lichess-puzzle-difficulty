@@ -4,10 +4,9 @@ from pathlib import Path
 import pandas as pd
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.model_selection import GroupShuffleSplit
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from .data import load_sample
+from .data import load_sample, split_groups
 from .features import make_features
 from .evaluation import regression_metrics
 from .models import MODELS
@@ -26,8 +25,7 @@ def main():
     numeric = X.select_dtypes(include="number").columns.tolist()
     rows = []
     for ratio in (0.2, 0.3, 0.4):
-        train, valid = next(GroupShuffleSplit(n_splits=1, test_size=ratio,
-                           random_state=args.seed).split(X, y, groups=frame["game_id"]))
+        train, valid = split_groups(frame, ratio, args.seed)
         for representation in ("original", "pca", "svd"):
             for name in args.models:
                 preprocess = ColumnTransformer([
