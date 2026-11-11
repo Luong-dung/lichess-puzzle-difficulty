@@ -14,7 +14,6 @@ src/models/mlp.py     Thành viên 3: MLP
 src/evaluation.py     MAE, RMSE, R²
 src/run.py            Thực nghiệm chung
 docs/PHAN_CONG.md     Phân công và checklist yêu cầu còn lại
-notebook.ipynb        Notebook hiện có, giữ nguyên để nhóm phát triển
 ```
 
 ## Cài đặt và chạy
