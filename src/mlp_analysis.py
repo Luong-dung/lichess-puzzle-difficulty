@@ -222,7 +222,7 @@ def run_mlp(frame, features, out, seed=42, folds=5, detail_fraction=0.2, param_g
             f"detail_fraction={detail_fraction} không có trong {{0.2, 0.3, 0.4}}."
         )
     
-    # # Lưu chỉ số đánh giá
+    # Lưu chỉ số đánh giá
     metrics = pd.DataFrame(rows)
     metrics.to_csv(out / "mlp_metrics.csv", index=False)
 
