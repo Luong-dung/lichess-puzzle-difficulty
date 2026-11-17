@@ -4,7 +4,7 @@
 
 ```powershell
 python -m src.prepare --sample 20000 --seed 42 --output outputs/features_v2
-python -m unittest discover -s tests -v
+python -m unittest -v
 python -m src.run --sample 20000 --seed 42
 ```
 
@@ -28,8 +28,6 @@ Quét toàn nguồn theo chunk 100.000 dòng; gán ưu tiên ngẫu nhiên seed 
 6. Trùng khóa PuzzleFEN chuẩn hóa: bốn trường đầu, bỏ bộ đếm nước.
 
 Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo chunk. Xác thực chi tiết, lỗi/trùng và thống kê Rating/đặc trưng chỉ trên mẫu; không suy rộng thành toàn nguồn không có lỗi.
-Đã xác nhận với giảng viên yêu cầu ít nhất 15 thuộc tính được tính sau trích xuất; bộ hiện tại
-đạt (33 thuộc tính, đã bỏ hai cột số vua hằng).
 
 ## 33 đặc trưng đầu vào
 
@@ -61,4 +59,28 @@ Loại thế cờ trùng trước, rồi GroupShuffleSplit theo ID ván với va
 
 Trong outputs/features_v2/: quality_report.json, sample.csv (gồm FEN gốc và PuzzleFEN), features.csv (cùng thứ tự hàng), feature_statistics.csv, split_20/30/40.csv, rating_distribution.png. Mã và tài liệu được commit, artifacts cục bộ không commit.
 
-Theo phản hồi của Doanh trong issue #1, yêu cầu 15 thuộc tính sau trích xuất đã được xác nhận. Bộ đặc trưng mới chờ nhóm review qua PR; chưa gộp main hoặc đóng issue.
+Theo phản hồi của Doanh trong issue #1, giảng viên đã xác nhận yêu cầu ít nhất 15 thuộc tính
+tính sau trích xuất; bộ v2 đạt (33 thuộc tính, đã bỏ hai cột số vua hằng). Bộ đặc trưng v2
+được gộp vào `main` qua PR #2 và khóa từ ngày 18/11/2026.
+
+## Kết quả lần chạy bộ v2 (18/11/2026)
+
+Lệnh `python -m src.prepare --sample 20000 --seed 42` trên `main` sau khi gộp PR #2.
+Mẫu sinh ra giống hệt từng byte với `outputs/features_v2/sample.csv` tạo ngày 21/10.
+
+Quét 6.157.341 dòng nguồn. Không thiếu ở chín cột từ PuzzleId đến GameUrl;
+OpeningTags thiếu 4.932.426 dòng, DailyDate thiếu 6.155.554 dòng. Hai trường này
+không dùng làm đầu vào nên không loại dòng chỉ vì thiếu chúng.
+
+Mẫu 20.000 dòng, seed 42: không loại dòng nào ở cả sáu bước làm sạch (kể cả FEN hoặc
+nước thiết lập không hợp lệ và trùng PuzzleFEN). Sau làm sạch còn 20.000 dòng. Đây là
+kết quả của mẫu, không chứng minh toàn nguồn không có lỗi hoặc trùng.
+
+Rating mẫu: trung bình 1.465,09; độ lệch chuẩn 546,52; min 399; Q1 1.037; trung vị 1.411;
+Q3 1.865; max 3.065. 33 đặc trưng, không có cột hằng.
+
+| Validation | Train | Validation | Giao ID ván | Giao thế cờ |
+|---|---:|---:|---:|---:|
+| 20% | 16.000 | 4.000 | 0 | 0 |
+| 30% | 14.000 | 6.000 | 0 | 0 |
+| 40% | 12.000 | 8.000 | 0 | 0 |
