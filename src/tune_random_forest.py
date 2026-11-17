@@ -1,7 +1,7 @@
 """Thành viên 2: tuning Random Forest bằng GroupKFold trên train, rồi đánh giá trên validation.
 
 Chạy:  python -m src.tune_random_forest --n-iter 20
-Dùng lại mẫu đã làm sạch (outputs/preprocessing/sample.csv) nếu có để khỏi quét lại CSV gốc.
+Dùng lại mẫu đã làm sạch (outputs/features_v2/sample.csv) nếu có để khỏi quét lại CSV gốc.
 """
 import argparse
 import json
@@ -52,13 +52,13 @@ def build_pipeline(numeric, seed, **params):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default="lichess_db_puzzle.csv")
-    parser.add_argument("--cache", default="outputs/preprocessing/sample.csv")
+    parser.add_argument("--cache", default="outputs/features_v2/sample.csv")
     parser.add_argument("--sample", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--validation", type=float, default=0.2)
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--n-iter", type=int, default=20)
-    parser.add_argument("--output", default="outputs/random_forest")
+    parser.add_argument("--output", default="outputs/random_forest_v3")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     out = Path(args.output)
