@@ -91,8 +91,19 @@ def main():
         print(f"[{i}/{len(candidates)}] {params} cv_rmse={row['cv_rmse']:.1f} "
               f"({elapsed:.0f}s, còn ~{elapsed / i * (len(candidates) - i):.0f}s)", flush=True)
     results = pd.DataFrame(rows).sort_values("cv_rmse")
+    # Quy tắc 1-SE: các cấu hình có CV RMSE trong 1 sai số chuẩn của cấu hình tốt nhất coi như
+    # ngang nhau; chọn cấu hình ít overfit nhất (khoảng cách CV - train nhỏ nhất).
+    results["overfit_gap"] = results["cv_rmse"] - results["train_rmse"]
+    top = results.iloc[0]
+    threshold = top["cv_rmse"] + top["cv_rmse_std"] / np.sqrt(args.folds)
+    results["within_1se"] = results["cv_rmse"] <= threshold
+    chosen = results[results["within_1se"]].sort_values("overfit_gap").iloc[0]
     results.to_csv(out / "cv_results.csv", index=False)
-    best = candidates[int(results.iloc[0]["candidate"])]
+    best = candidates[int(chosen["candidate"])]
+    selection = dict(rule="1-SE, nhỏ nhất overfit_gap", threshold_cv_rmse=float(threshold),
+                     lowest_cv_params=candidates[int(top["candidate"])], lowest_cv_rmse=float(top["cv_rmse"]),
+                     chosen_cv_rmse=float(chosen["cv_rmse"]), chosen_overfit_gap=float(chosen["overfit_gap"]),
+                     n_within_1se=int(results["within_1se"].sum()))
 
     # 2. Fit lại trên toàn bộ train, đánh giá một lần trên validation.
     model = build_pipeline(numeric, args.seed, **best)
@@ -103,7 +114,7 @@ def main():
                "validation": regression_metrics(y[valid], pred_valid),
                "baseline_mean_validation": regression_metrics(
                    y[valid], np.full(len(valid), y_train.mean()))}
-    report = dict(best_params=best, metrics=metrics, n_features=X.shape[1],
+    report = dict(best_params=best, selection=selection, metrics=metrics, n_features=X.shape[1],
                   n_train=len(train), n_validation=len(valid), folds=args.folds,
                   n_iter=args.n_iter, seed=args.seed, tuning_seconds=round(time.time() - start))
     (out / "best.json").write_text(json.dumps(report, indent=2, ensure_ascii=False, default=str),
