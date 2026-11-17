@@ -56,6 +56,8 @@ def extract_fen(fen):
                     turn="w" if board.turn else "b", en_passant=int(board.has_legal_en_passant()),
                     halfmove=board.halfmove_clock, fullmove=board.fullmove_number)
     features["material_difference"] = features["white_material"] - features["black_material"]
+    sign = 1 if board.turn == chess.WHITE else -1
+    features["material_balance_to_move"] = sign * features["material_difference"]
     legal = list(board.legal_moves)
     features["legal_moves"] = len(legal)
     features["checking_moves"] = sum(board.gives_check(m) for m in legal)

@@ -1,5 +1,21 @@
 # Dữ liệu và tiền xử lý — phiên bản 2
 
+## Kết quả lần chạy bộ đặc trưng v2 (17/11/2026)
+
+Quét 6.157.341 dòng nguồn. Không thiếu ở chín cột từ PuzzleId đến GameUrl;
+OpeningTags thiếu 4.932.426 dòng, DailyDate thiếu 6.155.554 dòng. Hai trường
+này không dùng làm đầu vào nên không loại dòng chỉ vì thiếu chúng.
+
+Mẫu ngẫu nhiên 20.000 dòng, seed 42: không có dòng thiếu trường bắt buộc,
+Rating/URL không hợp lệ, FEN hoặc nước thiết lập lỗi, PuzzleId trùng hay
+PuzzleFEN chuẩn hóa trùng; sau làm sạch còn 20.000 dòng. Đây là kết quả của mẫu,
+không chứng minh toàn nguồn không có lỗi hoặc trùng.
+
+Rating mẫu: trung bình 1.465,09; độ lệch chuẩn 546,52; min 399; Q1 1.037;
+trung vị 1.411; Q3 1.865; max 3.065. Có 34 đặc trưng, không có cột hằng.
+Train/validation ở ba tỷ lệ lần lượt 16.000/4.000, 14.000/6.000, 12.000/8.000
+dòng; cả ba phép chia có giao ID ván và khóa thế cờ bằng 0.
+
 ## Chạy lại
 
 ```powershell
@@ -29,9 +45,9 @@ Quét toàn nguồn theo chunk 100.000 dòng; gán ưu tiên ngẫu nhiên seed 
 
 Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo chunk. Xác thực chi tiết, lỗi/trùng và thống kê Rating/đặc trưng chỉ trên mẫu; không suy rộng thành toàn nguồn không có lỗi.
 Đã xác nhận với giảng viên yêu cầu ít nhất 15 thuộc tính được tính sau trích xuất; bộ hiện tại
-đạt (33 thuộc tính, đã bỏ hai cột số vua hằng).
+đạt (34 thuộc tính, đã bỏ hai cột số vua hằng).
 
-## 33 đặc trưng đầu vào
+## 34 đặc trưng đầu vào
 
 | Tên | Số cột | Ý nghĩa |
 |---|---:|---|
@@ -42,6 +58,7 @@ Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo 
 | en_passant | 1 | Có nước bắt tốt qua đường hợp lệ |
 | halfmove, fullmove | 2 | Hai bộ đếm nước |
 | material_difference | 1 | Vật chất trắng trừ đen |
+| material_balance_to_move | 1 | Chênh lệch vật chất theo bên tới lượt: material_difference, đổi dấu khi đen tới lượt |
 | white_pinned, black_pinned | 2 | Quân không phải vua bị ghim tuyệt đối vào vua |
 | white_hanging, black_hanging | 2 | Quân không phải vua bị tấn công mà không được bảo vệ |
 | white_attacked_squares, black_attacked_squares | 2 | Số ô bị mỗi bên tấn công, xấp xỉ độ hoạt động |
@@ -60,5 +77,3 @@ Không dùng Rating, RatingDeviation, Popularity, NbPlays, Themes hoặc phần 
 Loại thế cờ trùng trước, rồi GroupShuffleSplit theo ID ván với validation 20%, 30%, 40%, seed 42. Kiểm tra giao ID ván và khóa PuzzleFEN bằng 0. Tỷ lệ dòng có thể lệch tỷ lệ nhóm. Cả ba mô hình dùng chung hàm chia. Mã hóa, chuẩn hóa, giảm chiều và biến đổi Rating chỉ fit trên train. Thế cờ gần giống chưa được coi là trùng; cần test độc lập nếu tuning nhiều lần.
 
 Trong outputs/features_v2/: quality_report.json, sample.csv (gồm FEN gốc và PuzzleFEN), features.csv (cùng thứ tự hàng), feature_statistics.csv, split_20/30/40.csv, rating_distribution.png. Mã và tài liệu được commit, artifacts cục bộ không commit.
-
-Theo phản hồi của Doanh trong issue #1, yêu cầu 15 thuộc tính sau trích xuất đã được xác nhận. Bộ đặc trưng mới chờ nhóm review qua PR; chưa gộp main hoặc đóng issue.

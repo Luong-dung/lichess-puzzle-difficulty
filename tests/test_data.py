@@ -58,13 +58,22 @@ class DataTests(unittest.TestCase):
     def test_features_and_clock_independent_key(self):
         fen = chess.STARTING_FEN
         features = extract_fen(fen)
-        self.assertEqual(len(features), 33)
+        self.assertEqual(len(features), 34)
         self.assertNotIn("white_k", features)
         self.assertEqual(features["legal_moves"], 20)
         self.assertEqual(features["checking_moves"], 0)
         self.assertEqual(features["white_p"], 8)
         self.assertEqual(features["material_difference"], 0)
         self.assertEqual(position_key(fen), position_key(fen.rsplit(" ", 2)[0]+" 7 10"))
+
+    def test_material_balance_from_side_to_move(self):
+        # White is a rook up; the sign follows the side to move.
+        white_to_move = extract_fen("4k3/8/8/8/8/8/8/R3K3 w - - 0 1")
+        black_to_move = extract_fen("4k3/8/8/8/8/8/8/R3K3 b - - 0 1")
+        self.assertEqual(white_to_move["material_difference"], 5)
+        self.assertEqual(black_to_move["material_difference"], 5)
+        self.assertEqual(white_to_move["material_balance_to_move"], 5)
+        self.assertEqual(black_to_move["material_balance_to_move"], -5)
 
     def test_bad_rows_and_duplicates_accounted(self):
         source = self.fixture(5)

@@ -7,7 +7,7 @@ Random Forest và MLP. Đây là khung thực nghiệm ban đầu, chưa phải 
 
 ```text
 src/data.py           Đọc từng chunk và lấy mẫu toàn tệp bằng ưu tiên ngẫu nhiên
-src/features.py       Trích xuất 33 đặc trưng từ FEN
+src/features.py       Trích xuất 34 đặc trưng từ FEN
 src/models/linear.py  Thành viên 1: Ridge
 src/models/random_forest.py    Thành viên 2: Random Forest
 src/models/mlp.py     Thành viên 3: MLP
