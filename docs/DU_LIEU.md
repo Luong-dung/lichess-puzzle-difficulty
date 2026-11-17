@@ -12,7 +12,7 @@ PuzzleFEN chuẩn hóa trùng; sau làm sạch còn 20.000 dòng. Đây là kế
 không chứng minh toàn nguồn không có lỗi hoặc trùng.
 
 Rating mẫu: trung bình 1.465,09; độ lệch chuẩn 546,52; min 399; Q1 1.037;
-trung vị 1.411; Q3 1.865; max 3.065. Có 33 đặc trưng, không có cột hằng.
+trung vị 1.411; Q3 1.865; max 3.065. Có 34 đặc trưng, không có cột hằng.
 Train/validation ở ba tỷ lệ lần lượt 16.000/4.000, 14.000/6.000, 12.000/8.000
 dòng; cả ba phép chia có giao ID ván và khóa thế cờ bằng 0.
 
@@ -45,9 +45,9 @@ Quét toàn nguồn theo chunk 100.000 dòng; gán ưu tiên ngẫu nhiên seed 
 
 Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo chunk. Xác thực chi tiết, lỗi/trùng và thống kê Rating/đặc trưng chỉ trên mẫu; không suy rộng thành toàn nguồn không có lỗi.
 Đã xác nhận với giảng viên yêu cầu ít nhất 15 thuộc tính được tính sau trích xuất; bộ hiện tại
-đạt (33 thuộc tính, đã bỏ hai cột số vua hằng).
+đạt (34 thuộc tính, đã bỏ hai cột số vua hằng).
 
-## 33 đặc trưng đầu vào
+## 34 đặc trưng đầu vào
 
 | Tên | Số cột | Ý nghĩa |
 |---|---:|---|
@@ -58,6 +58,7 @@ Thống kê toàn nguồn: số dòng, missing theo cột, dtype quan sát theo 
 | en_passant | 1 | Có nước bắt tốt qua đường hợp lệ |
 | halfmove, fullmove | 2 | Hai bộ đếm nước |
 | material_difference | 1 | Vật chất trắng trừ đen |
+| material_balance_to_move | 1 | Chênh lệch vật chất theo bên tới lượt: material_difference, đổi dấu khi đen tới lượt |
 | white_pinned, black_pinned | 2 | Quân không phải vua bị ghim tuyệt đối vào vua |
 | white_hanging, black_hanging | 2 | Quân không phải vua bị tấn công mà không được bảo vệ |
 | white_attacked_squares, black_attacked_squares | 2 | Số ô bị mỗi bên tấn công, xấp xỉ độ hoạt động |

@@ -86,7 +86,7 @@ Logistic, so sánh, kết luận); Dũng 5–6 trang; Ngọc 5–6 trang.
 - [x] Runner có tỷ lệ validation 20%, 30%, 40%; dữ liệu gốc, PCA, SVD.
 - [x] Xác thực FEN bằng python-chess; thống kê thiếu, lỗi, trùng thế cờ.
 - [x] EDA, biểu đồ 4–6 thành phần, phương sai giải thích và so sánh hai cách giảm chiều.
-- [ ] Bổ sung đặc trưng python-chess; chạy lại EDA, PCA, Ridge (Doanh, 18–19/11).
+- [x] Bổ sung đặc trưng python-chess (34 thuộc tính, khóa 18/11); chạy lại EDA, PCA, Ridge (Doanh, xong 17/11).
 - [ ] K-Means và GMM; đánh giá định lượng, trực quan hóa và đối chiếu Rating (Dũng, Ngọc, 20–21/11).
 - [ ] Điều chỉnh siêu tham số trên train; phân tích overfit và phần dư (Ridge xong; RF, MLP 19/11).
 - [ ] Phân loại bổ sung: chia Rating thành 3–4 khoảng gần cân bằng; ngưỡng học từ train (Ngọc, 18/11).
