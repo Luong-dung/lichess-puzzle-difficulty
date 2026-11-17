@@ -16,16 +16,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--sample", default="outputs/features_v2/sample.csv")
     parser.add_argument("--output", default="outputs/features_v2/baseline_review.md")
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    frame = pd.read_csv(args.sample)
+    frame = pd.read_csv(args.sample, dtype={"game_id": "string"})
     X, y = make_features(frame), frame["Rating"]
-    train, valid = split_groups(frame, .2, 42)
+    train, valid = split_groups(frame, .2, args.seed)
+    constant = X.columns[X.nunique() <= 1].tolist()
+    constant_note = f" Cột hằng: {', '.join(constant)}." if constant else " Không có cột hằng."
     preprocess = ColumnTransformer([
         ("numeric", StandardScaler(), X.select_dtypes(include="number").columns.tolist()),
         ("turn", OneHotEncoder(handle_unknown="ignore", sparse_output=False), ["turn"])])
     models = {"Mean baseline": DummyRegressor(), "Ridge v2": make_pipeline(preprocess, Ridge(alpha=10))}
     lines = ["# Kiểm tra bộ đặc trưng v2", "",
-             f"Mẫu sạch {len(frame)} dòng; seed 42; train {len(train)}, validation {len(valid)}; 33 đặc trưng.",
+             f"Mẫu sạch {len(frame)} dòng; seed {args.seed}; train {len(train)}, validation {len(valid)}; "
+             f"{X.shape[1]} đặc trưng.{constant_note}",
              "Cùng mẫu và phép chia theo game_id; không dùng chung ván hoặc thế cờ.", "",
              "| Mô hình | MAE | RMSE | R² |", "|---|---:|---:|---:|"]
     for name, model in models.items():
@@ -35,9 +39,7 @@ def main():
     lines += ["", "Chỉ là kiểm tra ban đầu ở tỷ lệ 80:20, chưa tuning và chưa có test cuối cùng.",
               "Không so trực tiếp với số liệu nhánh khác nếu chưa xác nhận cùng mẫu và split.", "",
               "Tái lập: `python -m src.prepare --sample 20000 --seed 42 --output outputs/features_v2`",
-              "rồi `python -m src.check_baseline`.", "",
-              "Đã chạy 8 test đạt và smoke test 27 tổ hợp trên 300 dòng.",
-              "Mẫu 20.000 dòng: không loại lỗi/trùng, không có cột hằng, giao ván/thế cờ bằng 0 ở cả ba tỷ lệ."]
+              f"rồi `python -m src.check_baseline --seed {args.seed}`."]
     result = "\n".join(lines) + "\n"
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(result, encoding="utf-8")
