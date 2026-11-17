@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit
-from .features import position_key
+from .features import position_key, puzzle_fen
 
 
 def clean_sample(frame):
@@ -12,20 +12,21 @@ def clean_sample(frame):
         nonlocal frame
         report[name] = int(mask.sum())
         frame = frame.loc[~mask].copy()
-    remove(frame[["PuzzleId", "FEN", "Rating", "GameUrl"]].isna().any(axis=1), "missing_required")
+    remove(frame[["PuzzleId", "FEN", "Moves", "Rating", "GameUrl"]].isna().any(axis=1), "missing_required")
     frame["Rating"] = pd.to_numeric(frame["Rating"], errors="coerce")
     remove(~np.isfinite(frame["Rating"]) | (frame["Rating"] <= 0), "invalid_rating")
     frame["game_id"] = frame["GameUrl"].str.extract(r"^https://lichess\.org/([A-Za-z0-9]{8})(?:[/#?]|$)")[0]
     remove(frame["game_id"].isna(), "invalid_game_url")
     remove(frame.duplicated("PuzzleId"), "duplicate_puzzle_id")
-    keys = []
-    for fen in frame["FEN"]:
+    positions = []
+    for fen, moves in zip(frame["FEN"], frame["Moves"]):
         try:
-            keys.append(position_key(fen))
+            positions.append(puzzle_fen(fen, moves))
         except (ValueError, TypeError):
-            keys.append(None)
-    frame["position_key"] = keys
-    remove(frame["position_key"].isna(), "invalid_fen")
+            positions.append(None)
+    frame["PuzzleFEN"] = positions
+    remove(frame["PuzzleFEN"].isna(), "invalid_fen_or_setup_move")
+    frame["position_key"] = frame["PuzzleFEN"].map(position_key)
     remove(frame.duplicated("position_key"), "duplicate_position")
     report["sample_rows_after"] = len(frame)
     return frame.reset_index(drop=True), report
@@ -42,7 +43,7 @@ def load_sample(path, size=20000, seed=42, return_report=False):
         for column in chunk:
             missing[column] = missing.get(column, 0) + int(chunk[column].isna().sum())
             dtypes.setdefault(column, set()).add(str(chunk[column].dtype))
-        chunk = chunk[["PuzzleId", "FEN", "Rating", "GameUrl"]].copy()
+        chunk = chunk[["PuzzleId", "FEN", "Moves", "Rating", "GameUrl"]].copy()
         chunk["_priority"] = rng.random(len(chunk))
         selected = chunk if selected is None else pd.concat([selected, chunk], ignore_index=True)
         selected = selected.nsmallest(size, "_priority")
