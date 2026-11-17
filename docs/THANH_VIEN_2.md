@@ -10,6 +10,7 @@ vật chất và đặc trưng chiến thuật từ python-chess (`docs/DU_LIEU.
 python -m src.prepare --sample 20000 --seed 42 --output outputs/features_v2   # tạo cache
 python -m src.tune_random_forest      # ~3 phút, ghi outputs/random_forest_v3/
 python -m src.kmeans_analysis         # ~15 giây, ghi outputs/clustering_v2/
+python -m src.rf_reduction            # ~3 phút, RF trên gốc / PCA / SVD, ghi outputs/rf_reduction/
 ```
 
 Không có cache thì hai script tự quét CSV gốc. Tham số: `--n-iter`, `--folds`, `--k`, `--output`.
@@ -90,6 +91,43 @@ hơn. Đây là dấu hiệu mô hình thiếu thông tin, không phải lỗi c
 Hai cách đo thống nhất: số nước chiếu hợp lệ (đặc trưng chiến thuật mới) quan trọng nhất,
 tiếp theo là giai đoạn ván (số nước, vật chất quân lớn).
 
+## Random Forest trên dữ liệu giảm chiều: PCA và SVD
+
+`python -m src.rf_reduction` (~3 phút, ghi `outputs/rf_reduction/`). Dùng đúng tham số RF
+đã chọn ở trên. **PCA**: chuẩn hóa có trừ trung bình rồi PCA. **SVD**: chuẩn hóa không trừ
+trung bình rồi TruncatedSVD, tức SVD chưa tâm hóa (nếu đã tâm hóa thì SVD trùng PCA).
+Mọi bước fit trên train. Đầu vào 34 cột (33 đặc trưng, `turn` one-hot); k = 1/3 = 11.
+
+### Giữ 1/3 số chiều (k = 11), ba tỷ lệ validation
+
+| Validation | Gốc: RMSE / R² | PCA k=11: RMSE / R² | SVD k=11: RMSE / R² |
+|---|---|---|---|
+| 20% | 498,4 / 0,151 | 512,7 / 0,101 | 511,7 / 0,105 |
+| 30% | 499,7 / 0,147 | 514,9 / 0,094 | 515,2 / 0,093 |
+| 40% | 503,7 / 0,142 | 518,4 / 0,092 | 518,9 / 0,090 |
+
+Giảm còn 11 chiều làm RF mất khoảng 1/3 R² ở cả ba tỷ lệ. PCA và SVD gần như ngang nhau
+(chênh ≤ 1 điểm RMSE, đổi thứ hạng giữa các tỷ lệ).
+
+### Quét số chiều k (validation 20%, `rf_pca_vs_svd.png`)
+
+| k | 1 | 2 | 3 | 5 | 8 | 11 | 15 | 20 | 25 | 33 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| PCA: phương sai giữ lại | 0,325 | 0,411 | 0,461 | 0,550 | 0,651 | 0,744 | 0,852 | 0,946 | 0,982 | 1,000 |
+| SVD: phương sai giữ lại | 0,200 | 0,357 | 0,428 | 0,522 | 0,629 | 0,724 | 0,836 | 0,940 | 0,982 | 1,000 |
+| PCA: RMSE validation | 537,0 | 531,7 | 526,9 | 517,0 | 513,6 | 512,7 | 512,1 | 507,9 | 507,0 | 507,4 |
+| SVD: RMSE validation | 540,4 | 529,6 | 527,4 | 517,6 | 513,6 | 511,7 | 511,5 | 511,0 | 509,6 | 510,4 |
+
+- Với cùng k, PCA luôn giữ nhiều phương sai hơn SVD, chênh nhiều nhất ở k nhỏ (k = 1:
+  0,325 so với 0,200). SVD chưa tâm hóa dùng thành phần đầu để mô tả hướng trung bình
+  của dữ liệu thay vì hướng biến thiên.
+- Giữ nhiều phương sai hơn không kéo theo dự đoán tốt hơn rõ rệt: từ k = 8, hai cách
+  chênh nhau dưới 4 điểm RMSE.
+- **Ngay cả PCA giữ đủ 33 chiều (100% phương sai) vẫn kém dữ liệu gốc** (507,4 so với
+  498,4). Phép xoay trộn các đặc trưng lại với nhau, trong khi cây quyết định chỉ cắt
+  song song trục, nên mất các ngưỡng có nghĩa trên từng đặc trưng gốc (ví dụ
+  `checking_moves`). Với RF, giảm chiều bằng PCA/SVD không có lợi; nên dùng đặc trưng gốc.
+
 ## K-Means
 
 ### Cách làm
@@ -126,5 +164,6 @@ cũng không thấy vùng Rating tách biệt.
 - RF vẫn chỉ giải thích ~15% phương sai Rating: độ khó nằm chủ yếu ở lời giải, mà
   lời giải không được dùng làm đặc trưng để tránh rò rỉ.
 - Cụm K-Means mô tả giai đoạn ván, không phản ánh độ khó.
-- Còn lại: so sánh SVD với PCA (dựa trên `pca_vs_svd.csv` của Doanh); chạy lại sau khi
-  Doanh thêm `material_balance_to_move`.
+- PCA và SVD giữ 1/3 số chiều làm RF mất ~1/3 R²; hai cách gần ngang nhau về dự đoán.
+- Còn lại: chạy lại cả ba script sau khi PR #6 (`material_balance_to_move`, 34 đặc trưng)
+  được merge.
