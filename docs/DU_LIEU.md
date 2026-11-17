@@ -72,8 +72,9 @@ hơn số yêu cầu; không bù thêm dòng sau khi loại lỗi/trùng.
 Đây là bộ đặc trưng baseline, chưa mô tả đầy đủ chiến thuật hay cấu trúc vị trí.
 Số vua có thể là cột hằng; báo cáo chất lượng liệt kê cột hằng để nhóm cân nhắc
 loại hoặc thay bằng đặc trưng khác khi phân tích giảm chiều. Không dùng Rating,
-RatingDeviation, Popularity, NbPlays, Moves hoặc Themes làm đầu vào. Cần xác nhận
-với giảng viên yêu cầu 15 thuộc tính được tính sau trích xuất.
+RatingDeviation, Popularity, NbPlays, Moves hoặc Themes làm đầu vào. Đã xác nhận
+với giảng viên yêu cầu ít nhất 15 thuộc tính được tính sau trích xuất; bộ hiện tại
+vẫn đạt (21 thuộc tính) khi bỏ hai cột hằng.
 
 ## Chia dữ liệu và chống rò rỉ
 
