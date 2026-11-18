@@ -16,8 +16,9 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
-from .data import load_sample, split_groups
+from .data import split_groups
 from .features import make_features
+from .sample_cache import load_frame
 
 
 def main():
@@ -30,19 +31,17 @@ def main():
     parser.add_argument("--k-max", type=int, default=10)
     parser.add_argument("--k", type=int, default=None)
     parser.add_argument("--silhouette-sample", type=int, default=5000)
-    parser.add_argument("--output", default="outputs/clustering_v2")
+    parser.add_argument("--output", default="outputs/clustering_v3")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 
-    cache = Path(args.cache)
-    frame = (pd.read_csv(cache, dtype={"game_id": "string"}) if cache.exists()
-             else load_sample(args.data, args.sample, args.seed))
+    frame = load_frame(args.data, args.cache, args.sample, args.seed)
     X = make_features(frame)
     X = pd.get_dummies(X, columns=["turn"], dtype=float)
-    X = X.loc[:, X.nunique() > 1]
     train, valid = split_groups(frame, args.validation, args.seed)
+    X = X.loc[:, X.iloc[train].nunique() > 1]  # cột hằng xác định trên train
     scaler = StandardScaler().fit(X.iloc[train])
     Z_train, Z_valid = scaler.transform(X.iloc[train]), scaler.transform(X.iloc[valid])
     rating_train, rating_valid = frame["Rating"].iloc[train], frame["Rating"].iloc[valid]

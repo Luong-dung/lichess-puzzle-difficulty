@@ -18,9 +18,10 @@ import pandas as pd
 from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
-from .data import load_sample, split_groups
+from .data import split_groups
 from .evaluation import regression_metrics
 from .features import make_features
+from .sample_cache import load_frame
 from .preprocessing import build_preprocess, reduced_dimensions
 
 
@@ -40,22 +41,31 @@ def main():
     parser.add_argument("--cache", default="outputs/features_v2/sample.csv")
     parser.add_argument("--sample", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--params", default="outputs/random_forest_v3/best.json",
+    parser.add_argument("--params", default="outputs/random_forest_v4/best.json",
                         help="best.json của tune_random_forest; không có thì dùng tham số mặc định")
-    parser.add_argument("--output", default="outputs/rf_reduction")
+    parser.add_argument("--output", default="outputs/rf_reduction_v2")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 
-    cache = Path(args.cache)
-    frame = (pd.read_csv(cache, dtype={"game_id": "string"}) if cache.exists()
-             else load_sample(args.data, args.sample, args.seed))
+    frame = load_frame(args.data, args.cache, args.sample, args.seed)
     X, y = make_features(frame), frame["Rating"].to_numpy()
     numeric = X.select_dtypes(include="number").columns.tolist()
     params_path = Path(args.params)
-    params = (json.loads(params_path.read_text(encoding="utf-8"))["best_params"] if params_path.exists()
-              else dict(n_estimators=400, max_depth=12, min_samples_leaf=20, max_features=0.8))
+    if params_path.exists():
+        tuned = json.loads(params_path.read_text(encoding="utf-8"))
+        params, params_source = tuned["best_params"], str(params_path)
+        if tuned.get("seed") != args.seed or tuned.get("n_features") != X.shape[1]:
+            print(f"CẢNH BÁO: {params_path} được tune với seed={tuned.get('seed')}, "
+                  f"{tuned.get('n_features')} đặc trưng; hiện tại seed={args.seed}, {X.shape[1]} đặc trưng. "
+                  f"Nên chạy lại src.tune_random_forest trước.", flush=True)
+    else:
+        params = dict(n_estimators=400, max_depth=12, min_samples_leaf=20, max_features=0.8)
+        params_source = "mặc định (chưa chạy src.tune_random_forest)"
+        print(f"CẢNH BÁO: không có {params_path}; dùng tham số RF mặc định. "
+              f"Chạy python -m src.tune_random_forest trước để dùng tham số đã tune.", flush=True)
+    print(f"Tham số RF lấy từ: {params_source}", flush=True)
     k_third = reduced_dimensions(numeric)
     dims = len(numeric) + 2
     print(f"{X.shape[1]} đặc trưng ({dims} cột sau one-hot), k = 1/3 = {k_third}; RF {params}", flush=True)
@@ -110,7 +120,7 @@ def main():
     plt.savefig(out / "rf_pca_vs_svd.png", dpi=150)
     plt.close()
 
-    summary = dict(params=params, k_third=k_third, input_dimensions=dims,
+    summary = dict(params=params, params_source=params_source, k_third=k_third, input_dimensions=dims,
                    validation=table[table.split == "validation"].round(4).to_dict("records"),
                    train=table[table.split == "train"].round(4).to_dict("records"),
                    seconds=round(time.time() - start))

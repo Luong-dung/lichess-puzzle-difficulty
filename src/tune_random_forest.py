@@ -19,9 +19,10 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import GroupKFold, ParameterSampler, learning_curve
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
-from .data import load_sample, split_groups
+from .data import split_groups
 from .evaluation import regression_metrics
 from .features import make_features
+from .sample_cache import load_frame
 
 GRID = {
     "n_estimators": [100, 200, 400],
@@ -29,16 +30,6 @@ GRID = {
     "min_samples_leaf": [1, 2, 5, 10, 20],
     "max_features": [0.3, 0.5, 0.8, 1.0, "sqrt"],
 }
-
-
-def load_frame(args):
-    cache = Path(args.cache)
-    if cache.exists():
-        frame = pd.read_csv(cache, dtype={"game_id": "string"})
-        print(f"Đọc mẫu đã làm sạch từ {cache}: {len(frame)} dòng", flush=True)
-        return frame
-    print("Không có cache, quét CSV gốc (vài phút)...", flush=True)
-    return load_sample(args.data, args.sample, args.seed)
 
 
 def build_pipeline(numeric, seed, **params):
@@ -58,13 +49,13 @@ def main():
     parser.add_argument("--validation", type=float, default=0.2)
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--n-iter", type=int, default=20)
-    parser.add_argument("--output", default="outputs/random_forest_v3")
+    parser.add_argument("--output", default="outputs/random_forest_v4")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 
-    frame = load_frame(args)
+    frame = load_frame(args.data, args.cache, args.sample, args.seed)
     X, y = make_features(frame), frame["Rating"].to_numpy()
     numeric = X.select_dtypes(include="number").columns.tolist()
     train, valid = split_groups(frame, args.validation, args.seed)
