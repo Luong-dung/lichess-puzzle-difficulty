@@ -11,26 +11,36 @@ python -m unittest discover -s tests -v
 Cả hai dùng cùng `load_sample`, `split_groups` và tiền xử lý với `src/run.py`
 (`src/preprocessing.py`). PCA, chuẩn hóa và chọn alpha chỉ fit trên train.
 
-## EDA (mẫu 20.000 dòng, seed 42, lần chạy 21/10/2026)
+Kết quả dưới đây là lần chạy ngày 17/11/2026 trên bộ đặc trưng v2: thế cờ người
+giải (PuzzleFEN) và 34 đặc trưng (`docs/DU_LIEU.md`). Số liệu bộ 23 đặc trưng cũ
+(21/10) nằm trong lịch sử Git và không còn dùng để so sánh.
 
-- Cột hằng: `white_k`, `black_k`. Bên tới lượt: đen 51,4%, trắng 48,6%.
-- Tương quan Spearman đơn biến với Rating đều rất yếu, |ρ| ≤ 0,07. Mạnh nhất là
-  `fullmove` (+0,062), sau đó là bốn quyền nhập thành (−0,03 đến −0,04).
+## EDA (mẫu 20.000 dòng, seed 42)
+
+- Không có cột hằng. Bên tới lượt (người giải): trắng 51,4%, đen 48,6%.
+- Tương quan Spearman đơn biến với Rating vẫn yếu, |ρ| ≤ 0,10. Mạnh nhất là
+  `material_balance_to_move` (+0,093), `in_check` (+0,071), `halfmove` (+0,066),
+  `white_q` (+0,065), hai cột `*_king_zone_attacked` (+0,06) và `fullmove` (+0,063).
+  Đặc trưng mới theo góc nhìn bên tới lượt có tương quan cao nhất, trong khi
+  `material_difference` theo góc nhìn trắng gần như không tương quan.
 - Biểu đồ: `rating_distribution.png`, `feature_histograms.png`,
   `correlation_heatmap.png`, `rating_correlation.png`, `rating_by_material_and_move.png`.
 
-## PCA (fit trên train của phép chia 20%, 16.000 dòng, 24 chiều sau one-hot)
+## PCA (fit trên train của phép chia 20%, 16.000 dòng, 35 chiều sau one-hot)
 
 | | Giá trị |
 |---|---|
-| PC1–PC6 | 38,3%; 11,0%; 6,2%; 5,6%; 5,1%; 4,9% |
-| k = 8 (1/3 số chiều, như runner) | 80,8% phương sai |
-| Số thành phần cho 80% / 90% / 95% | 8 / 11 / 13 |
-| TruncatedSVD với k = 8 | 80,8% |
+| PC1–PC6 | 31,5%; 8,5%; 5,1%; 4,6%; 4,2%; 3,6% |
+| k = 11 (1/3 số chiều, như runner) | 73,0% phương sai |
+| Số thành phần cho 80% / 90% / 95% | 14 / 18 / 22 |
+| TruncatedSVD với k = 11 | 73,0% |
+
+So với bộ cũ, phương sai trải đều hơn: PC1 giảm từ 38,3% xuống 31,5% và cần
+14 thay vì 8 thành phần để đạt 80%. Các đặc trưng chiến thuật mang thông tin
+không trùng với đếm quân.
 
 PCA và TruncatedSVD trong runner gần như trùng nhau vì dữ liệu đã chuẩn hóa
-(trung bình 0) trước khi giảm chiều. Chỉ hai cột one-hot `turn` không được tâm
-hóa, nên SVD không khác PCA đáng kể.
+(trung bình 0) trước khi giảm chiều; chỉ hai cột one-hot `turn` không được tâm hóa.
 
 Để so sánh có nội dung, `src.eda` chạy thêm SVD trên dữ liệu **chưa tâm hóa**
 (chia độ lệch chuẩn, không trừ trung bình). Cả hai fit trên train, sai số tái tạo
@@ -38,57 +48,61 @@ hóa, nên SVD không khác PCA đáng kể.
 
 | k | PCA: phương sai train | SVD chưa tâm hóa: phương sai train | PCA: phần không tái tạo (val) | SVD chưa tâm hóa: phần không tái tạo (val) |
 |---:|---:|---:|---:|---:|
-| 1 | 38,3% | 21,7% | 63,1% | 80,5% |
-| 4 | 61,1% | 56,8% | 40,8% | 45,1% |
-| 8 | 80,8% | 77,2% | 19,0% | 23,6% |
+| 1 | 31,5% | 19,4% | 69,4% | 81,7% |
+| 4 | 49,6% | 46,5% | 51,8% | 55,0% |
+| 11 | 73,0% | 71,0% | 26,9% | 29,1% |
 
-- Ở cùng k, PCA luôn tái tạo tốt hơn. SVD chưa tâm hóa phải dùng thành phần đầu
-  để mô tả vector trung bình. Thành phần này gần như không chứa thông tin phân
-  biệt các bài, nên SVD cần 9 chiều mới đạt sai số của PCA ở k = 8.
-- Hai đường gặp nhau từ khoảng 15 chiều. PCA đạt 100% ở 18 chiều vì 24 cột đầu
-  vào có 6 chiều dư thừa: 2 cột vua hằng, hai cột tổng vật chất và
-  `material_difference` là tổ hợp tuyến tính của số quân, cùng hai cột one-hot
-  `turn` có tổng bằng 1.
-- Khi chiếu validation lên hai thành phần đầu (`pca_vs_svd_projection.png`), cả
-  hai cách đều không tách được vùng Rating khác nhau. Kết luận về giới hạn của bộ
-  đặc trưng không đổi.
+- Ở cùng k, PCA luôn tái tạo tốt hơn. SVD chưa tâm hóa dùng thành phần đầu để
+  mô tả vector trung bình, nên cần 12 chiều mới đạt sai số của PCA ở k = 11.
+- PCA đạt 100% ở 30 chiều vì 35 cột đầu vào có khoảng 5 chiều dư thừa: hai cột
+  tổng vật chất và `material_difference` là tổ hợp tuyến tính của số quân,
+  `phase_material` gần như tuyến tính theo số quân (chỉ bị chặn ở 24), và hai cột
+  one-hot `turn` có tổng bằng 1. `material_balance_to_move` không dư thừa vì phụ
+  thuộc cả `turn`.
+- Khi chiếu validation lên hai thành phần đầu (`pca_vs_svd_projection.png`) và
+  PC1–PC4 (`pca_components_by_rating.png`), không thấy vùng Rating tách biệt rõ.
 - SVD chưa tâm hóa phù hợp hơn với dữ liệu thưa (ví dụ one-hot 64 ô × 12 loại
-  quân), nơi việc trừ trung bình phá vỡ tính thưa. Hướng này để trao đổi với
-  thành viên 2 (phụ trách SVD).
-
-Khi chiếu tập validation lên PC1–PC4 (`pca_components_by_rating.png`), không
-thấy vùng nào có Rating trung bình khác biệt rõ. Các thành phần chính mô tả
-lượng vật chất và giai đoạn ván, không mô tả độ khó.
+  quân). Hướng này để trao đổi với thành viên 2 (phụ trách SVD).
 
 ## Ridge và OLS
 
 Alpha được chọn trên lưới 10⁻³…10⁴ bằng GroupKFold 5 fold theo ván, chỉ dùng
-train. Đường CV gần như phẳng khi alpha ≤ 10³. Alpha tốt nhất là 10^2,5 (biểu
-diễn gốc) và 10³ (PCA/SVD).
+train. Đường CV gần như phẳng khi alpha ≤ 10². Alpha tốt nhất là 10² (biểu diễn
+gốc) và 10^2,5–10³ (PCA/SVD).
 
 | Validation | Biểu diễn | Mô hình | RMSE train | RMSE val | MAE val | R² val |
 |---|---|---|---:|---:|---:|---:|
 | 20% | gốc | Trung bình train | 547,9 | 540,8 | 451,1 | 0,000 |
-| 20% | gốc | OLS | 544,6 | 536,6 | 447,6 | 0,016 |
-| 20% | gốc | Ridge | 544,6 | 536,7 | 447,7 | 0,015 |
-| 20% | PCA k=8 | Ridge | 546,1 | 538,6 | 449,4 | 0,008 |
-| 30% | gốc | Ridge | 545,6 | 537,4 | 447,7 | 0,014 |
-| 40% | gốc | Ridge | 545,0 | 540,3 | 449,8 | 0,013 |
+| 20% | gốc | OLS | 532,2 | 524,2 | 435,4 | 0,061 |
+| 20% | gốc | Ridge | 532,2 | 524,2 | 435,5 | 0,061 |
+| 20% | PCA k=11 | Ridge | 541,0 | 532,8 | 444,0 | 0,029 |
+| 20% | SVD k=11 | Ridge | 541,0 | 532,8 | 444,0 | 0,030 |
+| 30% | gốc | Ridge | 532,6 | 526,2 | 436,5 | 0,054 |
+| 40% | gốc | Ridge | 531,7 | 529,5 | 438,5 | 0,052 |
 
 Chi tiết đủ 27 dòng trong `outputs/linear/linear_summary.csv`.
 
+So với bộ 23 đặc trưng cũ (Ridge 20%: RMSE val 536,7, R² 0,015), bộ v2 giảm
+RMSE khoảng 12,5 Rating và tăng R² gấp 4 lần, nhưng vẫn thấp tuyệt đối.
+
+Hệ số chuẩn hóa lớn nhất (Rating trên 1 độ lệch chuẩn, `ridge_coefficients.csv`):
+`material_balance_to_move` +71,9; `black_attacked_squares` −69,0; `fullmove` +65,0;
+`white_attacked_squares` −61,7; `in_check` +57,7; `white_q` +49,7; `legal_moves` +48,5.
+Các hệ số bị ảnh hưởng bởi tương quan giữa đặc trưng nên chỉ đọc như xu hướng,
+không phải tác động nhân quả.
+
 ## Nhận xét
 
-- **Không overfit, mà underfit nặng.** RMSE train và validation chênh dưới 10
-  Rating, learning curve phẳng. Mô hình chỉ tốt hơn dự đoán hằng số khoảng 4
-  Rating RMSE (R² ≈ 0,015).
-- **Phần dư co về trung bình.** Dự đoán chỉ nằm trong khoảng 1.300–1.750.
-  Bài dễ (< 800) bị dự đoán cao hơn thực tế khoảng 800, bài khó (> 2.200) bị dự
-  đoán thấp hơn khoảng 950 (`ridge_residuals.png`).
-- Nguyên nhân là 23 đặc trưng đếm quân và vật chất gần như không chứa thông tin
-  về độ khó chiến thuật. Ridge và PCA không khắc phục được, vì giới hạn nằm ở
-  đặc trưng chứ không ở mô hình. Đề xuất cho cả nhóm: thêm đặc trưng từ
-  python-chess như số nước hợp lệ, bên tới lượt có bị chiếu không, số quân bị
-  tấn công hoặc không được bảo vệ, độ an toàn của vua, chênh lệch vật chất theo
-  góc nhìn bên tới lượt. Sau đó chạy lại cả ba mô hình. Những đặc trưng này vẫn
-  chỉ lấy từ FEN nên không vi phạm quy tắc đầu vào.
+- **Không overfit, mà underfit.** RMSE train và validation chênh dưới 10 Rating;
+  learning curve gần phẳng từ 5.600 dòng train (`ridge_learning_curve.png`).
+  Thêm dữ liệu không giúp nhiều, giới hạn nằm ở đặc trưng và tính tuyến tính.
+- **Phần dư co về trung bình.** Nhóm Rating thấp nhất (399–790) bị dự đoán cao
+  hơn thực tế trung bình 762, nhóm cao nhất (2.208–3.065) bị dự đoán thấp hơn 936
+  (`ridge_residuals.png`, `ridge_residuals_by_rating.csv`).
+- **PCA/SVD với 1/3 số chiều làm giảm R² một nửa** (0,061 → 0,029). Các thành
+  phần giữ nhiều phương sai nhất mô tả lượng vật chất, không phải các tín hiệu
+  yếu liên quan đến Rating, nên giảm chiều không giám sát bỏ mất thông tin hữu ích.
+- Bộ đặc trưng v2 tốt hơn rõ nhưng vẫn chỉ mô tả bề mặt thế cờ. Độ khó puzzle
+  phụ thuộc vào độ sâu chiến thuật (nước yên lặng, hy sinh, số nước lời giải)
+  mà đặc trưng tĩnh từ FEN chỉ phản ánh gián tiếp. Mô hình phi tuyến (Random
+  Forest, MLP) có thể khai thác tương tác giữa các đặc trưng tốt hơn Ridge.

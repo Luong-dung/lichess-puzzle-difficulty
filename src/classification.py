@@ -1,5 +1,5 @@
 """Chia khoảng điểm Rating theo phân vị và phân loại bằng Gaussian Naive Bayes.
-Cung cấp các hàm tiện ích xử lý nhãn dùng chung cho cả Naive Bayes (module này) và Logistic Regression
+Cung cấp các hàm xử lý nhãn dùng chung cho cả Naive Bayes và Logistic Regression
 """
 import argparse
 import json
@@ -8,14 +8,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
-from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.pipeline import Pipeline
 
 from .data import load_sample, split_groups
 from .features import make_features
+from .models.naive_bayes import build_model as build_nb_model
 from .preprocessing import build_preprocess, reduced_dimensions
-from .plot_style import plt, save, SEQUENTIAL, TEXT
+from .plot_style import plt, save
 
 # Tính threshold từ tập train và gán nhãn cho y_train
 def fit_rating_bins(y_train, n_bins=3):
@@ -69,17 +69,21 @@ def _plot_confusion_matrix(cm, n_bins, title, path):
     ax.set(xlabel="Nhãn dự đoán", ylabel="Nhãn thực tế", title=title)
     save(figure, path)
 
-# Xây dựng pipeline cho Gaussian Naive Bayes
-def _build_nb_pipeline(numeric, representation="original", seed=42):
+# Xây dựng pipeline
+def _build_pipeline(numeric, build_fn, representation="original", seed=42):
     steps = [("preprocess", build_preprocess(numeric))]
     if representation == "pca":
-        n_components = reduced_dimensions(numeric)
-        steps.append(("reduce", PCA(n_components=n_components, random_state=seed)))
-    steps.append(("model", GaussianNB()))
+        steps.append(("reduce", PCA(n_components=reduced_dimensions(numeric), random_state=seed)))
+    steps.append(("model", build_fn(seed=seed)))
     return Pipeline(steps)
 
-# Huấn luyện và đánh giá Gaussian Naive Bayes
-def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
+
+def _build_nb_pipeline(numeric, representation="original", seed=42):
+    return _build_pipeline(numeric, build_nb_model, representation, seed)
+
+
+# Huấn luyện và đánh giá một bộ phân loại bất kỳ trên nhãn khoảng Rating
+def run_classification(frame, features, out, build_fn, model_name, prefix, seed=42, n_bins_list=(3, 4)):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -96,11 +100,12 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
         y_train, y_valid = y.iloc[train_idx], y.iloc[valid_idx]
 
         for n_bins in n_bins_list:
+            labels = list(range(n_bins))
             thresholds, y_train_binned = fit_rating_bins(y_train, n_bins)
             y_valid_binned = apply_rating_bins(y_valid, thresholds)
 
             for representation in ("original", "pca"):
-                pipeline = _build_nb_pipeline(numeric, representation, seed)
+                pipeline = _build_pipeline(numeric, build_fn, representation, seed)
                 pipeline.fit(X_train, y_train_binned)
 
                 for split, X_s, y_s in (
@@ -108,10 +113,10 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
                     ("validation", X_valid, y_valid_binned),
                 ):
                     y_pred = pipeline.predict(X_s)
-                    metrics = evaluate_classification(y_s, y_pred, labels=range(n_bins))
+                    metrics = evaluate_classification(y_s, y_pred, labels=labels)
                     rows.append(
                         dict(
-                            model="naive_bayes",
+                            model=model_name,
                             representation=representation,
                             n_bins=n_bins,
                             validation_fraction=fraction,
@@ -123,9 +128,9 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
                     )
 
                 if fraction == 0.2:
-                    cfg_key = f"nb_{representation}_{n_bins}bins"
+                    cfg_key = f"{prefix}_{representation}_{n_bins}bins"
                     y_pred_valid = pipeline.predict(X_valid)
-                    val_metrics = evaluate_classification(y_valid_binned, y_pred_valid, labels=range(n_bins))
+                    val_metrics = evaluate_classification(y_valid_binned, y_pred_valid, labels=labels)
                     best_configs[cfg_key] = {
                         "representation": representation,
                         "n_bins": n_bins,
@@ -139,18 +144,18 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
                     _plot_confusion_matrix(
                         cm,
                         n_bins,
-                        title=f"Naive Bayes - {representation} - {n_bins} khoảng (val frac=0.2)",
-                        path=out / f"nb_confusion_{representation}_{n_bins}bins.png",
+                        title=f"{model_name} - {representation} - {n_bins} khoảng (val frac=0.2)",
+                        path=out / f"{prefix}_confusion_{representation}_{n_bins}bins.png",
                     )
                     print(
-                        f"classification nb {representation} {n_bins}bins frac={fraction}"
+                        f"classification {prefix} {representation} {n_bins}bins frac={fraction}"
                         f"  acc={val_metrics['accuracy']:.4f}"
                         f"  f1={val_metrics['macro_f1']:.4f}",
                         flush=True,
                     )
 
     metrics_df = pd.DataFrame(rows)
-    metrics_df.to_csv(out / "nb_metrics.csv", index=False)
+    metrics_df.to_csv(out / f"{prefix}_metrics.csv", index=False)
 
     summary = dict(
         seed=seed,
@@ -160,11 +165,21 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
         .round(4)
         .to_dict("records"),
     )
-    (out / "nb_summary.json").write_text(
+    (out / f"{prefix}_summary.json").write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     return summary
 
+
+# Naive Bayes
+def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
+    return run_classification(frame, features, out, build_nb_model, "naive_bayes", "nb", seed, n_bins_list)
+
+
+# Logistic Regression
+def run_classification_logistic(frame, features, out, seed=42, n_bins_list=(3, 4)):
+    from .models.logistic_regression import build_model as build_lr_model
+    return run_classification(frame, features, out, build_lr_model, "logistic_regression", "lr", seed, n_bins_list)
 
 
 def main():
@@ -175,12 +190,16 @@ def main():
     parser.add_argument("--sample", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default="outputs/classification")
+    parser.add_argument("--model", choices=["nb", "logistic", "both"], default="nb")
     args = parser.parse_args()
 
     frame = load_sample(args.data, args.sample, args.seed)
-    summary = run_classification_nb(
-        frame, make_features(frame), Path(args.output), seed=args.seed
-    )
+    features = make_features(frame)
+    summary = {}
+    if args.model in ("nb", "both"):
+        summary["nb"] = run_classification_nb(frame, features, Path(args.output), seed=args.seed)
+    if args.model in ("logistic", "both"):
+        summary["logistic"] = run_classification_logistic(frame, features, Path(args.output), seed=args.seed)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 
