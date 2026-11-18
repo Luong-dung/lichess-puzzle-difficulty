@@ -28,7 +28,9 @@ def load_frame(data, cache, sample, seed):
     problem = cache_problem(cache, sample, seed) if cache else "không dùng cache"
     if problem is None:
         frame = pd.read_csv(cache, dtype={"game_id": "string"})
-        print(f"Đọc mẫu từ cache {cache}: {len(frame)} dòng (seed {seed}, sample {sample})", flush=True)
+        print(f"Đọc mẫu từ cache {cache}: {len(frame)} dòng (seed {seed}, sample {sample}). "
+              f"Cache không kiểm tra --data; đổi file dữ liệu thì chạy với --cache \"\" để quét lại.",
+              flush=True)
         return frame
     print(f"Không dùng cache ({problem}); quét CSV gốc {data}...", flush=True)
     return load_sample(data, sample, seed)

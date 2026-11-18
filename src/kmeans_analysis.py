@@ -66,6 +66,12 @@ def main():
     plt.close()
 
     k = args.k or int(scores.loc[scores.silhouette.idxmax(), "k"])
+    if k not in set(scores.k):  # --k nằm ngoài khoảng đã quét
+        km = KMeans(n_clusters=k, n_init=10, random_state=args.seed).fit(Z_train)
+        sil = silhouette_score(Z_train, km.labels_, sample_size=min(args.silhouette_sample, len(train)),
+                               random_state=args.seed)
+        scores = pd.concat([scores, pd.DataFrame([dict(k=k, inertia=km.inertia_, silhouette=sil)])],
+                           ignore_index=True)
     km = KMeans(n_clusters=k, n_init=10, random_state=args.seed).fit(Z_train)
     label_train, label_valid = km.labels_, km.predict(Z_valid)
 

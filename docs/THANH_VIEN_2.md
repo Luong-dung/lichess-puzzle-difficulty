@@ -63,7 +63,9 @@ ngưỡng 1-SE nên quy tắc chọn được cấu hình nông hơn hẳn (dept
 
 ### Overfit (`hyperparameter_effect.png`)
 
-RMSE trung bình theo `max_depth` trong 20 cấu hình:
+RMSE trung bình theo `max_depth` trong 20 cấu hình. Mỗi giá trị là trung bình của các cấu
+hình ngẫu nhiên khác nhau về tham số còn lại, nên đường train trong hình không đơn điệu;
+dùng để thấy xu hướng, không phải ảnh hưởng riêng của từng tham số.
 
 | max_depth | train RMSE | CV RMSE |
 |---|---|---|
@@ -121,6 +123,10 @@ one-hot); k = 1/3 = 11.
 | 20% | 500,2 / 0,145 | 516,0 / 0,090 | 513,9 / 0,097 |
 | 30% | 501,8 / 0,140 | 516,0 / 0,090 | 516,3 / 0,089 |
 | 40% | 505,5 / 0,136 | 519,0 / 0,089 | 519,8 / 0,087 |
+
+Tham số RF được tune trên train của phép chia 20%. Ở phép chia 30% và 40%, lần lượt
+khoảng 33% và 50% số dòng validation đã nằm trong tập train dùng để tune, nên hai dòng đó
+hơi lạc quan; so sánh giữa gốc, PCA và SVD trong cùng một dòng vẫn công bằng.
 
 Giảm còn 11 chiều làm RF mất khoảng 1/3 R² ở cả ba tỷ lệ. PCA và SVD gần như ngang nhau
 (chênh ≤ 2,1 điểm RMSE, đổi thứ hạng giữa các tỷ lệ).

@@ -115,8 +115,12 @@ def main():
     # 3. Ảnh hưởng từng siêu tham số (overfit: khoảng cách train - CV).
     fig, axes = plt.subplots(1, 4, figsize=(16, 4))
     for ax, key in zip(axes, GRID):
-        g = results.assign(**{key: results[key].astype(str)}).groupby(key)[["train_rmse", "cv_rmse"]].mean()
+        # Nhãn lấy từ tham số gốc (None không bị mất thành NaN), giữ đúng thứ tự trong GRID.
+        labels = [str(candidates[int(c)][key]) for c in results["candidate"]]
+        g = (results.assign(**{key: labels}).groupby(key)[["train_rmse", "cv_rmse"]].mean()
+             .reindex([str(v) for v in GRID[key]]).dropna())
         g.plot(marker="o", ax=ax, title=key)
+        ax.set_xticks(range(len(g)), g.index)
         ax.set_ylabel("RMSE")
     plt.tight_layout()
     plt.savefig(out / "hyperparameter_effect.png", dpi=150)
