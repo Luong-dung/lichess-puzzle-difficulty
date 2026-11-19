@@ -1,4 +1,4 @@
-"""Mô hình hồi quy Multi-Layer Perceptron (MLP) và tinh chỉnh siêu tham số."""
+"""Member 3: Mô hình hồi quy Multi-Layer Perceptron (MLP) và tinh chỉnh siêu tham số."""
 import argparse
 import json
 from pathlib import Path
@@ -16,16 +16,22 @@ from .preprocessing import build_regressor
 from .plot_style import plt, save, SERIES, SEQUENTIAL, MUTED
 
 PARAM_PREFIX = "regressor__model__"
+EARLY_STOP = dict(n_iter_no_change=20, tol=1e-5)
+
 
 
 def tune_mlp(numeric, X, y, groups, representation="original", seed=42, folds=5, param_grid=None, n_jobs=-1, n_iter=15, epochs=300):
     # Tìm kiếm siêu tham số bằng GroupKFold trên tập huấn luyện.
     grid = param_grid if param_grid is not None else DEFAULT_PARAM_GRID
     search_grid = {f"{PARAM_PREFIX}{k}": v for k, v in grid.items()}
-    base_model = build_regressor(numeric, build_model(seed, max_iter=epochs), representation, seed)
-    # thử ngẫu nhiên n_iter tổ hợp tham số
+    base_model = build_regressor(numeric, build_model(seed, max_iter=epochs, **EARLY_STOP), representation, seed)
+    # Thử ngẫu nhiên n_iter tổ hợp tham số (giới hạn tối đa theo kích thước không gian)
+    total_space = 1
+    for v in search_grid.values():
+        total_space *= len(v) if isinstance(v, (list, tuple)) else 1
+    n_iter = min(n_iter, total_space)
     search = RandomizedSearchCV(
-         base_model,
+        base_model,
         search_grid,
         n_iter=n_iter,              
         cv=GroupKFold(n_splits=folds),      # Sử dụng GroupKFold để đảm bảo cùng 1 ván cờ
@@ -39,13 +45,49 @@ def tune_mlp(numeric, X, y, groups, representation="original", seed=42, folds=5,
     )
     return search.fit(X, y, groups=groups)
 
+# Vẽ biểu đồ so sánh RMSE giữa train và validation của từng lần thử
+def plot_tuning_overfit(search, out):
+    results = pd.DataFrame(search.cv_results_)
+    train_rmse = -results["mean_train_score"].astype(float).to_numpy()
+    val_rmse = -results["mean_test_score"].astype(float).to_numpy()
+    best = search.best_index_
+
+    figure, axes = plt.subplots(1, 2, figsize=(11, 3.9))
+    ax = axes[0]
+    others = np.arange(len(results)) != best
+    ax.scatter(train_rmse[others], val_rmse[others], s=36, color=SERIES[0], alpha=0.7, label="Trial")
+    low = min(train_rmse.min(), val_rmse.min())
+    high = max(train_rmse.max(), val_rmse.max())
+    pad = (high - low) * 0.12 + 3
+    ax.plot([low - pad, high + pad], [low - pad, high + pad], color=MUTED, linewidth=1, linestyle="--", label="y = x (không overfit)")
+    ax.scatter([train_rmse[best]], [val_rmse[best]], s=150, marker="*", color=SERIES[1], label="Lần thử tốt nhất", zorder=5)
+    ax.set_xlim(low - pad, high + pad)
+    ax.set_ylim(low - pad, high + pad)
+    ax.set(xlabel="RMSE train", ylabel="RMSE validation", title="Điểm càng xa đường y = x mức độ overfit càng cao")
+    ax.legend(loc="lower right")
+
+    ax = axes[1]
+    positions = np.arange(len(results))
+    bar_h = 0.25 if len(results) <= 4 else 0.36
+    ax.barh(positions - bar_h / 2, train_rmse, height=bar_h, color=SERIES[0], label="Train")
+    ax.barh(positions + bar_h / 2, val_rmse, height=bar_h, color=SERIES[1], label="Validation")
+    ax.set_xlim(max(0, low - pad * 2), high + pad * 2)
+    ax.set_yticks(positions, [f"Trial {i}" for i in positions])
+    ax.tick_params(axis="y", labelsize=8)
+    ax.invert_yaxis()
+    ax.set(xlabel="RMSE (Rating)", title="So sánh RMSE train và validation cho từng cấu hình tham số")
+    ax.legend(loc="upper right")
+
+    save(figure, out / "mlp_tuning_overfit.png")
+    results.to_csv(out / "mlp_cv_results.csv", index=False)    
+    
 # Vẽ biểu đồ hàm mất mát tập train và điểm validation qua từng epoch.
 def plot_loss_curve(model, out):
     mlp = model.regressor_.named_steps["model"]
     figure, ax = plt.subplots(figsize=(7, 3.6))
     epochs = np.arange(1, len(mlp.loss_curve_) + 1)
     ax.plot(epochs, mlp.loss_curve_, color=SERIES[0], label="Train loss")
-    ax.set(xlabel="Số epoch", ylabel="Loss", title="MLP: đường suy giảm hàm loss qua các epochs")
+    ax.set(xlabel="Số epoch", ylabel="Loss trên Rating đã chuẩn hóa", title="MLP: đường suy giảm hàm loss qua các epochs")
 
     # Nếu mô hình có bật early_stopping, vẽ thêm trục Y thứ 2 hiển thị điểm R2 trên tập validation nội bộ
     if hasattr(mlp, "validation_scores_") and mlp.validation_scores_ is not None and len(mlp.validation_scores_) > 0:
@@ -59,40 +101,8 @@ def plot_loss_curve(model, out):
     ax.legend(loc="upper right")
     save(figure, out / "mlp_loss_curve.png")
     
-# Vẽ biểu đồ so sánh RMSE giữa train và validation của từng lần thử
-def plot_tuning_overfit(search, out):
-    results = pd.DataFrame(search.cv_results_)
-    train_rmse = -results["mean_train_score"].astype(float).to_numpy()
-    val_rmse = -results["mean_test_score"].astype(float).to_numpy()
-    best = search.best_index_
-
-    figure, axes = plt.subplots(1, 2, figsize=(11, 3.9))
-    ax = axes[0]
-    ax.scatter(train_rmse, val_rmse, s=30, color=SERIES[0], alpha=0.6, label="Trial")
-    low = min(train_rmse.min(), val_rmse.min())
-    high = max(train_rmse.max(), val_rmse.max())
-    ax.plot([low, high], [low, high], color=MUTED, linewidth=1, linestyle="--", label="y = x (không overfit)")
-    ax.scatter([train_rmse[best]], [val_rmse[best]], s=150, marker="*",
-               color=SERIES[1], label="Lần thử tốt nhất", zorder=5)
-    ax.set(xlabel="RMSE train", ylabel="RMSE validation",
-           title="Điểm càng xa đường y = x mức độ overfit càng cao")
-    ax.legend(loc="upper left")
-
-    ax = axes[1]
-    positions = np.arange(len(results))
-    ax.barh(positions - 0.2, train_rmse, height=0.4, color=SERIES[0], label="Train")
-    ax.barh(positions + 0.2, val_rmse, height=0.4, color=SERIES[1], label="Validation")
-    ax.set_yticks(positions, [f"Trial {i}" for i in positions])
-    ax.tick_params(axis="y", labelsize=7)
-    ax.invert_yaxis()
-    ax.set(xlabel="RMSE (Rating)", title="So sánh RMSE train và validation cho từng cấu hình tham số")
-    ax.legend(loc="lower right")
-
-    save(figure, out / "mlp_tuning_overfit.png")
-    results.to_csv(out / "mlp_cv_results.csv", index=False)
-  
 # Vẽ đường học theo kích thước tập train
-def plot_learning_curve(numeric, X, y, frame, train, valid, best_params, seed, out):
+def plot_learning_curve(numeric, X, y, frame, train, valid, best_params, seed, out, epochs=300):
     games = np.random.default_rng(seed).permutation(np.asarray(frame["game_id"].iloc[train].unique(), dtype=object))
     rows = []
     for share in (0.1, 0.25, 0.5, 0.75, 1.0):
@@ -104,6 +114,7 @@ def plot_learning_curve(numeric, X, y, frame, train, valid, best_params, seed, o
         
         params = dict(best_params)
         params["early_stopping"] = len(subset) >= 50
+        params["max_iter"] = epochs
         model = build_regressor(numeric, build_model(seed, **params), "original", seed)
         model.fit(X.iloc[subset], y.iloc[subset])
         rows.append(
@@ -128,18 +139,25 @@ def plot_residuals(y_true, prediction, out):
     residual = y_true - prediction
     figure, axes = plt.subplots(1, 3, figsize=(13, 3.9))
     low, high = min(y_true.min(), prediction.min()), max(y_true.max(), prediction.max())
+    pad = (high - low) * 0.04
+    lo, hi = low - pad, high + pad
 
     # Mật độ phân bố giữa Rating thực tế và Rating dự đoán
-    image = axes[0].hexbin(y_true, prediction, gridsize=35, cmap=SEQUENTIAL, mincnt=1, bins="log", linewidths=0)
-    axes[0].plot([low, high], [low, high], color=MUTED, linewidth=1, linestyle="--", label="Dự đoán đúng (y = x)")
+    image = axes[0].hexbin(
+        y_true, prediction, gridsize=22, extent=(lo, hi, lo, hi),
+        cmap=SEQUENTIAL, mincnt=1, bins="log", linewidths=0.2
+    )
+    axes[0].plot([lo, hi], [lo, hi], color=MUTED, linewidth=1, linestyle="--", label="Dự đoán đúng (y = x)")
+    axes[0].set_xlim(lo, hi)
+    axes[0].set_ylim(lo, hi)
     axes[0].set(xlabel="Rating thực tế", ylabel="Rating dự đoán", title="Thực tế và dự đoán")
     axes[0].legend(loc="upper left")
     figure.colorbar(image, ax=axes[0], label="Số bài (log)")
 
     # Mật độ phân bố phần dư theo giá trị dự đoán
-    image = axes[1].hexbin(prediction, residual, gridsize=35, cmap=SEQUENTIAL, mincnt=1, bins="log", linewidths=0)
+    image = axes[1].hexbin(prediction, residual, gridsize=25, cmap=SEQUENTIAL, mincnt=1, bins="log", linewidths=0.2)
     axes[1].axhline(0, color=MUTED, linewidth=1, linestyle="--")
-    axes[1].set(xlabel="Rating dự đoán", ylabel="Phần dư", title="Phần dư theo giá trị dự đoán")
+    axes[1].set(xlabel="Rating dự đoán", ylabel="Phần dư (thực tế - dự đoán)", title="Phần dư theo giá trị dự đoán")
     figure.colorbar(image, ax=axes[1], label="Số bài (log)")
 
     # Sai số trung bình ở từng mức độ khó
@@ -156,8 +174,7 @@ def plot_residuals(y_true, prediction, out):
     axes[2].legend(loc="upper center")
     save(figure, out / "mlp_residuals.png")
     return pd.DataFrame(
-        {"rating_bin": labels, "mean_residual": by_bin.mean().values,
-         "mae": by_bin.apply(lambda s: s.abs().mean()).values, "n": by_bin.size().values}
+        {"rating_bin": labels, "mean_residual": by_bin.mean().values, "mae": by_bin.apply(lambda s: s.abs().mean()).values, "n": by_bin.size().values}
     )
 
 # Trích xuất bộ tham số tốt nhất
@@ -193,6 +210,7 @@ def run_mlp(frame, features, out, seed=42, folds=5, detail_fraction=0.2, param_g
             best_configs[f"{representation}_{fraction}"] = {
                 k: (list(v) if isinstance(v, tuple) else v) for k, v in clean_params.items()
             }
+            
             candidates = {
                 "mean_baseline": build_regressor(numeric, DummyRegressor(), representation, seed),
                 "ols": build_regressor(numeric, LinearRegression(), representation, seed),
@@ -231,7 +249,7 @@ def run_mlp(frame, features, out, seed=42, folds=5, detail_fraction=0.2, param_g
     model = search.best_estimator_
     plot_tuning_overfit(search, out)
     plot_loss_curve(model, out)
-    plot_learning_curve(numeric, X, y, frame, train, valid, clean_params, seed, out)
+    plot_learning_curve(numeric, X, y, frame, train, valid, clean_params, seed, out, epochs = epochs)
     residuals = plot_residuals(y.iloc[valid], model.predict(X.iloc[valid]), out)
     residuals.to_csv(out / "mlp_residuals_by_rating.csv", index=False)
 

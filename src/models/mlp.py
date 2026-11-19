@@ -12,7 +12,7 @@ DEFAULT_PARAM_GRID = {
 def build_model(
     seed=42,
     hidden_layer_sizes=(64, 32),
-    alpha=0.001,
+    alpha=0.0001,
     learning_rate_init=0.001,
     max_iter=300,
     early_stopping=True,
