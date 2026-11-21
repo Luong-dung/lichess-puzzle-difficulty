@@ -1,12 +1,17 @@
-# Thành viên 1: EDA, PCA và Ridge
+# Thành viên 1: EDA, PCA, Ridge và Logistic Regression
 
 ## Chạy lại
 
 ```powershell
-python -m src.eda --sample 20000 --seed 42              # -> outputs/eda/
-python -m src.linear_analysis --sample 20000 --seed 42  # -> outputs/linear/
+python -m src.eda --sample 20000 --seed 42                # -> outputs/eda/
+python -m src.linear_analysis --sample 20000 --seed 42    # -> outputs/linear/
+python -m src.logistic_analysis --sample 20000 --seed 42  # -> outputs/logistic/
+python -m src.compare                                     # -> outputs/comparison/
 python -m unittest discover -s tests -v
 ```
+
+`src.compare` không huấn luyện lại mà chỉ gom file của cả ba thành viên, nên cần chạy
+các script khác trước (thứ tự ghi ở đầu `src/compare.py`).
 
 Cả hai dùng cùng `load_sample`, `split_groups` và tiền xử lý với `src/run.py`
 (`src/preprocessing.py`). PCA, chuẩn hóa và chọn alpha chỉ fit trên train.
@@ -106,3 +111,59 @@ không phải tác động nhân quả.
   phụ thuộc vào độ sâu chiến thuật (nước yên lặng, hy sinh, số nước lời giải)
   mà đặc trưng tĩnh từ FEN chỉ phản ánh gián tiếp. Mô hình phi tuyến (Random
   Forest, MLP) có thể khai thác tương tác giữa các đặc trưng tốt hơn Ridge.
+
+## Logistic Regression (phân loại khoảng Rating)
+
+Dùng chung nhãn với Naive Bayes của Thành viên 3: ngưỡng phân vị học trên train
+(`fit_rating_bins`). Ở phép chia 20%, 3 khoảng cắt tại 1.154 và 1.699; 4 khoảng
+cắt tại 1.036, 1.409 và 1.865. Softmax đa lớp, phạt L2. C được chọn trên lưới
+10⁻⁴…10² bằng GroupKFold 5 fold theo ván trên train, tiêu chí macro-F1. Đối chứng
+là bộ đoán lớp đông nhất của train. Kết quả chạy ngày 21/11/2026.
+
+| Validation | Khoảng | Biểu diễn | C | Acc train | Acc val | Macro-F1 val |
+|---|---:|---|---:|---:|---:|---:|
+| 20% | 3 | đoán lớp đông nhất | | 0,334 | 0,329 | 0,165 |
+| 20% | 3 | gốc | 3,16 | 0,411 | 0,405 | 0,396 |
+| 20% | 3 | PCA k=11 | 0,001 | 0,378 | 0,380 | 0,375 |
+| 20% | 4 | đoán lớp đông nhất | | 0,251 | 0,248 | 0,099 |
+| 20% | 4 | gốc | 0,003 | 0,331 | 0,323 | 0,316 |
+| 20% | 4 | PCA k=11 | 0,0003 | 0,306 | 0,310 | 0,306 |
+| 30% | 3 | gốc | 0,003 | 0,413 | 0,407 | 0,399 |
+| 40% | 3 | gốc | 0,003 | 0,411 | 0,406 | 0,396 |
+| 30% | 4 | gốc | 0,003 | 0,333 | 0,322 | 0,316 |
+| 40% | 4 | gốc | 0,01 | 0,332 | 0,323 | 0,317 |
+
+Đủ 24 dòng trong `outputs/logistic/lr_summary.csv`; kết quả từng giá trị C trong
+`lr_cv_results.csv`; biểu đồ `lr_tuning_curve_*`, `lr_confusion_*`, `lr_coefficients_*`.
+
+Ma trận nhầm lẫn 3 khoảng, đặc trưng gốc, validation 20% (hàng là nhãn thật):
+
+| | Dự đoán dễ | Dự đoán vừa | Dự đoán khó |
+|---|---:|---:|---:|
+| Dễ (< 1.154) | 633 | 254 | 430 |
+| Vừa | 460 | 321 | 555 |
+| Khó (> 1.699) | 354 | 329 | 664 |
+
+Nhận xét:
+
+- **Hơn ngẫu nhiên nhưng không nhiều.** Accuracy 3 khoảng 0,405 so với 0,333 khi
+  đoán ngẫu nhiên; 4 khoảng 0,323 so với 0,25. Ổn định qua ba tỷ lệ chia (chênh
+  dưới 0,003). Train và validation chỉ chênh khoảng 0,01, tức không overfit.
+- **C không quan trọng.** Đường CV phẳng khi C ≥ 0,01 (macro-F1 0,395–0,396), nên
+  việc C = 3,16 ở ô 3 khoảng và C ≈ 0,003 ở các ô khác chỉ là dao động trong vùng
+  phẳng, không phải khác biệt thật. Giống Ridge: mô hình bị giới hạn bởi đặc trưng
+  chứ không bởi regularization.
+- **Khoảng giữa khó nhất.** Chỉ 24% bài mức vừa được đoán đúng; mô hình tuyến tính
+  dồn dự đoán về hai đầu. Nhiều bài dễ bị đoán là khó (430/1.317), cho thấy cùng
+  một cấu trúc bàn cờ có thể ứng với độ khó rất khác nhau.
+- **Hệ số nhất quán với Ridge.** Hướng "khó hơn" (hệ số khoảng khó trừ khoảng dễ):
+  `material_balance_to_move` +0,33, `fullmove` +0,28, `in_check` +0,25, `white_q`
+  +0,21, `legal_moves` +0,19; hướng "dễ hơn": `black_attacked_squares` −0,28,
+  `white_attacked_squares` −0,25. Đây cũng là các hệ số lớn nhất của Ridge.
+- **PCA 1/3 số chiều làm giảm nhẹ** macro-F1 (0,396 → 0,375 với 3 khoảng), cùng
+  chiều với Ridge.
+- **So với Naive Bayes** (Thành viên 3, cùng nhãn, validation 20%): 3 khoảng gốc
+  Logistic 0,396 so với NB 0,387 macro-F1. Ở 4 khoảng, Logistic giữ được 0,316
+  trong khi NB trên đặc trưng gốc gần như chỉ đoán một lớp (0,102). Logistic không
+  giả định các đặc trưng độc lập, nên không bị ảnh hưởng bởi tương quan mạnh giữa
+  các đặc trưng đếm quân và ô bị tấn công.
