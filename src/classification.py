@@ -3,6 +3,7 @@ Cung cấp các hàm xử lý nhãn dùng chung cho cả Naive Bayes và Logisti
 """
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -78,10 +79,6 @@ def _build_pipeline(numeric, build_fn, representation="original", seed=42):
     return Pipeline(steps)
 
 
-def _build_nb_pipeline(numeric, representation="original", seed=42):
-    return _build_pipeline(numeric, build_nb_model, representation, seed)
-
-
 # Huấn luyện và đánh giá một bộ phân loại bất kỳ trên nhãn khoảng Rating
 def run_classification(frame, features, out, build_fn, model_name, prefix, seed=42, n_bins_list=(3, 4)):
     out = Path(out)
@@ -92,7 +89,7 @@ def run_classification(frame, features, out, build_fn, model_name, prefix, seed=
     numeric = X.select_dtypes(include="number").columns.tolist()
 
     rows = []
-    best_configs = {}
+    details_frac_02 = {}
 
     for fraction in (0.2, 0.3, 0.4):
         train_idx, valid_idx = split_groups(frame, fraction, seed)
@@ -131,7 +128,7 @@ def run_classification(frame, features, out, build_fn, model_name, prefix, seed=
                     cfg_key = f"{prefix}_{representation}_{n_bins}bins"
                     y_pred_valid = pipeline.predict(X_valid)
                     val_metrics = evaluate_classification(y_valid_binned, y_pred_valid, labels=labels)
-                    best_configs[cfg_key] = {
+                    details_frac_02[cfg_key] = {
                         "representation": representation,
                         "n_bins": n_bins,
                         "n_components": (reduced_dimensions(numeric) if representation == "pca" else None),
@@ -160,7 +157,7 @@ def run_classification(frame, features, out, build_fn, model_name, prefix, seed=
     summary = dict(
         seed=seed,
         n_bins_evaluated=list(n_bins_list),
-        best_configs=best_configs,
+        details_frac_02=details_frac_02,
         validation=metrics_df[metrics_df["split"] == "validation"]
         .round(4)
         .to_dict("records"),
@@ -176,13 +173,10 @@ def run_classification_nb(frame, features, out, seed=42, n_bins_list=(3, 4)):
     return run_classification(frame, features, out, build_nb_model, "naive_bayes", "nb", seed, n_bins_list)
 
 
-# Logistic Regression
-def run_classification_logistic(frame, features, out, seed=42, n_bins_list=(3, 4)):
-    from .models.logistic_regression import build_model as build_lr_model
-    return run_classification(frame, features, out, build_lr_model, "logistic_regression", "lr", seed, n_bins_list)
-
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Phân loại độ khó bài cờ vua bằng Naive Bayes."
     )
@@ -190,16 +184,12 @@ def main():
     parser.add_argument("--sample", type=int, default=20000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", default="outputs/classification")
-    parser.add_argument("--model", choices=["nb", "logistic", "both"], default="nb")
     args = parser.parse_args()
 
     frame = load_sample(args.data, args.sample, args.seed)
     features = make_features(frame)
     summary = {}
-    if args.model in ("nb", "both"):
-        summary["nb"] = run_classification_nb(frame, features, Path(args.output), seed=args.seed)
-    if args.model in ("logistic", "both"):
-        summary["logistic"] = run_classification_logistic(frame, features, Path(args.output), seed=args.seed)
+    summary = run_classification_nb(frame, features, Path(args.output), seed=args.seed)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 

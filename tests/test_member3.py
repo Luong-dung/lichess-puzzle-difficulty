@@ -1,7 +1,14 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 import numpy as np
 import pandas as pd
@@ -77,7 +84,7 @@ class MLPTests(unittest.TestCase):
             )
 
             self.assertIn("seed", summary)
-            self.assertIn("best_configs", summary)
+            self.assertIn("details_frac_02", summary)
             self.assertIn("validation", summary)
 
             for name in (
@@ -142,7 +149,7 @@ class ClassificationTests(unittest.TestCase):
             summary = run_classification_nb(
                 frame, features, out, seed=42, n_bins_list=(3,)
             )
-            self.assertIn("best_configs", summary)
+            self.assertIn("details_frac_02", summary)
             self.assertIn("validation", summary)
 
             for name in (

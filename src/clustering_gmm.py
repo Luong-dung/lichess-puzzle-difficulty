@@ -1,6 +1,7 @@
 """Member 3: Phân cụm thế cờ bằng Gaussian Mixture Models (GMM)."""
 import argparse
 import json
+import sys
 from pathlib import Path
 import matplotlib
 
@@ -214,7 +215,7 @@ def load_kmeans_labels(path, frame):
     aligned = kdf.drop_duplicates("PuzzleId").set_index("PuzzleId")["kmeans_cluster"].reindex(
         frame["PuzzleId"].astype("string"))
     if aligned.isna().any():
-        print(f"{path} thiếu {int(aligned.isna().sum())} PuzzleId, bỏ qua so sánh K-Means.", flush=True)
+        print(f"{path} does not match current sample ({int(aligned.isna().sum())} missing PuzzleId, skipping K-Means comparison.", flush=True)
         return None
     return aligned.to_numpy(int)
 
@@ -242,7 +243,7 @@ def run_gmm(frame, features, out, seed=42, n_bins=3, k_range=range(2, 9), covari
     ks = list(k_range)
     at_boundary = best_k in (min(ks), max(ks)) and len(ks) > 1
     if at_boundary:
-        print(f"best_k={best_k} chạm biên dải tìm kiếm {min(ks)}-{max(ks)}.", flush=True)
+        print(f"best_k={best_k} is at the boundary of {min(ks)}-{max(ks)}.", flush=True)
 
     # Dự đoán nhãn cụm 
     cluster_labels = best_model.predict(X_scaled)
@@ -306,6 +307,8 @@ def run_gmm(frame, features, out, seed=42, n_bins=3, k_range=range(2, 9), covari
     return summary
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(
         description="Phân cụm thế cờ bằng GMM."
     )

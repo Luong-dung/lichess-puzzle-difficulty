@@ -1,6 +1,7 @@
 """Member 3: Mô hình hồi quy Multi-Layer Perceptron (MLP) và tinh chỉnh siêu tham số."""
 import argparse
 import json
+import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -233,7 +234,8 @@ def run_mlp(frame, features, out, seed=42, folds=5, detail_fraction=0.2, param_g
                     )
             if fraction == detail_fraction and representation == "original":
                 detail = (search, clean_params, train, valid, -search.best_score_)
-            print(f"Hoàn tất MLP ({representation}, tỷ lệ val={fraction}), tham số tốt nhất={clean_params}", flush=True)
+            print(f"MLP done ({representation}, val_frac={fraction}), best_params={clean_params}", flush=True)
+
 
     if detail is None:
         raise ValueError(
@@ -279,6 +281,9 @@ def run_mlp(frame, features, out, seed=42, folds=5, detail_fraction=0.2, param_g
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+        
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", default="lichess_db_puzzle.csv")
     parser.add_argument("--sample", type=int, default=20000)
