@@ -91,6 +91,7 @@ Logistic, so sánh, kết luận); Dũng 5–6 trang; Ngọc 5–6 trang.
 - [ ] Điều chỉnh siêu tham số trên train; phân tích overfit và phần dư (Ridge xong; RF, MLP 19/11).
 - [ ] Phân loại bổ sung: chia Rating thành 3–4 khoảng gần cân bằng; ngưỡng học từ train (Ngọc, 18/11).
 - [ ] Naive Bayes và Logistic trên đặc trưng gốc và giảm còn 1/3 số chiều (Ngọc, Doanh, 19–20/11).
+  Logistic xong 21/11 (`src/logistic_analysis.py`, C chọn bằng GroupKFold); `src/compare.py` xong 21/11.
 - [ ] Báo cáo 15–20 trang, slide, hướng dẫn tái lập và bảng so sánh cuối cùng (cả nhóm, 23–28/11).
 
 ## Mốc

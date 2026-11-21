@@ -1,12 +1,15 @@
+import numpy as np
 from sklearn.linear_model import LogisticRegression
 
+# C = 1/lambda (L2). Chọn bằng GroupKFold trên train trong src/logistic_analysis.py.
+C_GRID = np.logspace(-4, 2, 13)
 
-def build_model(seed=42):
+
+def build_model(seed=42, C=1.0, class_weight=None):
     return LogisticRegression(
-        C=1.0,                 # nghịch đảo hệ số L2
-        penalty="l2",
-        solver="lbfgs",
-        max_iter=1000,         # đủ lớn để tránh cảnh báo không hội tụ
-        class_weight=None,     # đổi thành "balanced" nếu các khoảng lệch nhau
+        C=C,
+        solver="lbfgs",        # softmax đa lớp
+        max_iter=2000,
+        class_weight=class_weight,
         random_state=seed,
     )
